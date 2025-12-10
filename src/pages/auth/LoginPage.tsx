@@ -4,15 +4,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { ScanFace, Mail, Lock, GraduationCap, UserCog, Shield, ArrowLeft, Loader2 } from 'lucide-react';
-import { UserRole } from '@/types';
+import { ScanFace, Mail, Lock, ArrowLeft, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('student');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -20,36 +17,53 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email || !password) {
+      toast({
+        title: "Missing fields",
+        description: "Please enter your email and password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      await login(email, password, selectedRole);
-      toast({
-        title: "Welcome back!",
-        description: "You've successfully logged in.",
-      });
-      navigate(`/${selectedRole}`);
+      const { error } = await login(email, password);
+      
+      if (error) {
+        let errorMessage = "Please check your credentials and try again.";
+        
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = "Invalid email or password. Please try again.";
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = "Please confirm your email address before logging in.";
+        } else if (error.message.includes('User not found')) {
+          errorMessage = "No account found with this email. Please sign up.";
+        }
+        
+        toast({
+          title: "Login failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Welcome back!",
+          description: "You've successfully logged in.",
+        });
+        // Navigation happens automatically via auth state change
+      }
     } catch (error) {
       toast({
         title: "Login failed",
-        description: "Please check your credentials and try again.",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const roleIcons = {
-    student: GraduationCap,
-    professor: UserCog,
-    admin: Shield,
-  };
-
-  const demoCredentials = {
-    student: 'student@university.edu',
-    professor: 'professor@university.edu',
-    admin: 'admin@university.edu',
   };
 
   return (
@@ -110,100 +124,67 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <Tabs value={selectedRole} onValueChange={(v) => setSelectedRole(v as UserRole)} className="w-full">
-            <TabsList className="grid grid-cols-3 w-full h-12">
-              {(['student', 'professor', 'admin'] as UserRole[]).map((role) => {
-                const Icon = roleIcons[role];
-                return (
-                  <TabsTrigger
-                    key={role}
-                    value={role}
-                    className="flex items-center gap-2 capitalize data-[state=active]:gradient-bg data-[state=active]:text-primary-foreground"
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="you@university.edu"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10"
+                    required
+                    autoComplete="email"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  <Link 
+                    to="/forgot-password" 
+                    className="text-sm text-primary hover:underline"
                   >
-                    <Icon className="w-4 h-4" />
-                    <span className="hidden sm:inline">{role}</span>
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
+                    Forgot password?
+                  </Link>
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10"
+                    required
+                    autoComplete="current-password"
+                  />
+                </div>
+              </div>
+            </div>
 
-            {(['student', 'professor', 'admin'] as UserRole[]).map((role) => (
-              <TabsContent key={role} value={role} className="mt-6">
-                <form onSubmit={handleLogin} className="space-y-6">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                        <Input
-                          id="email"
-                          type="email"
-                          placeholder={demoCredentials[role]}
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="pl-10"
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="password">Password</Label>
-                        <Link 
-                          to="/forgot-password" 
-                          className="text-sm text-primary hover:underline"
-                        >
-                          Forgot password?
-                        </Link>
-                      </div>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                        <Input
-                          id="password"
-                          type="password"
-                          placeholder="••••••••"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className="pl-10"
-                          required
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <Button 
-                    type="submit" 
-                    variant="gradient" 
-                    size="lg" 
-                    className="w-full"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Signing in...
-                      </>
-                    ) : (
-                      'Sign in'
-                    )}
-                  </Button>
-
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground">
-                      Demo: Use any email or try{' '}
-                      <button
-                        type="button"
-                        onClick={() => setEmail(demoCredentials[role])}
-                        className="text-primary hover:underline font-medium"
-                      >
-                        {demoCredentials[role]}
-                      </button>
-                    </p>
-                  </div>
-                </form>
-              </TabsContent>
-            ))}
-          </Tabs>
+            <Button 
+              type="submit" 
+              variant="gradient" 
+              size="lg" 
+              className="w-full"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                'Sign in'
+              )}
+            </Button>
+          </form>
 
           <div className="text-center">
             <p className="text-sm text-muted-foreground">

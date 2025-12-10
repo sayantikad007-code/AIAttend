@@ -1,83 +1,158 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, UserRole } from '@/types';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
+import { UserRole } from '@/types';
+
+interface Profile {
+  id: string;
+  user_id: string;
+  name: string;
+  email: string;
+  department: string | null;
+  roll_number: string | null;
+  employee_id: string | null;
+  photo_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface AppUser {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  photoURL?: string;
+  department?: string;
+  rollNumber?: string;
+  employeeId?: string;
+  createdAt: Date;
+}
 
 interface AuthContextType {
-  user: User | null;
+  user: AppUser | null;
+  session: Session | null;
   isLoading: boolean;
-  login: (email: string, password: string, role: UserRole) => Promise<void>;
-  register: (email: string, password: string, name: string, role: UserRole, additionalData?: Record<string, unknown>) => Promise<void>;
-  logout: () => void;
-  updateUser: (updates: Partial<User>) => void;
+  login: (email: string, password: string) => Promise<{ error: Error | null }>;
+  register: (
+    email: string, 
+    password: string, 
+    name: string, 
+    role: UserRole,
+    additionalData?: Record<string, unknown>
+  ) => Promise<{ error: Error | null }>;
+  logout: () => Promise<void>;
+  updateUser: (updates: Partial<AppUser>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for demo
-const mockUsers: Record<string, User> = {
-  'student@university.edu': {
-    id: 'student-1',
-    email: 'student@university.edu',
-    name: 'Alex Johnson',
-    role: 'student',
-    department: 'Computer Science',
-    photoURL: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
-    createdAt: new Date(),
-  },
-  'professor@university.edu': {
-    id: 'professor-1',
-    email: 'professor@university.edu',
-    name: 'Dr. Sarah Williams',
-    role: 'professor',
-    department: 'Computer Science',
-    photoURL: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=face',
-    createdAt: new Date(),
-  },
-  'admin@university.edu': {
-    id: 'admin-1',
-    email: 'admin@university.edu',
-    name: 'Michael Chen',
-    role: 'admin',
-    photoURL: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-    createdAt: new Date(),
-  },
-};
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    // Check for stored session
-    const storedUser = localStorage.getItem('attendease_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+  // Fetch user profile and role from database
+  const fetchUserData = async (userId: string) => {
+    try {
+      // Fetch profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error('Error fetching profile:', profileError);
+        return null;
+      }
+
+      if (!profile) {
+        console.log('No profile found for user:', userId);
+        return null;
+      }
+
+      // Fetch role
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (roleError) {
+        console.error('Error fetching role:', roleError);
+        return null;
+      }
+
+      const appUser: AppUser = {
+        id: userId,
+        email: profile.email,
+        name: profile.name,
+        role: (roleData?.role as UserRole) || 'student',
+        photoURL: profile.photo_url || undefined,
+        department: profile.department || undefined,
+        rollNumber: profile.roll_number || undefined,
+        employeeId: profile.employee_id || undefined,
+        createdAt: new Date(profile.created_at),
+      };
+
+      return appUser;
+    } catch (error) {
+      console.error('Error in fetchUserData:', error);
+      return null;
     }
-    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        
+        if (session?.user) {
+          // Defer Supabase calls with setTimeout to prevent deadlock
+          setTimeout(async () => {
+            const userData = await fetchUserData(session.user.id);
+            setUser(userData);
+            setIsLoading(false);
+          }, 0);
+        } else {
+          setUser(null);
+          setIsLoading(false);
+        }
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        fetchUserData(session.user.id).then((userData) => {
+          setUser(userData);
+          setIsLoading(false);
+        });
+      } else {
+        setIsLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string, role: UserRole) => {
-    setIsLoading(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const mockUser = mockUsers[email];
-    if (mockUser && mockUser.role === role) {
-      setUser(mockUser);
-      localStorage.setItem('attendease_user', JSON.stringify(mockUser));
-    } else {
-      // Create a demo user for the role
-      const demoUser: User = {
-        id: `${role}-demo`,
+  const login = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        name: email.split('@')[0],
-        role,
-        department: 'Computer Science',
-        createdAt: new Date(),
-      };
-      setUser(demoUser);
-      localStorage.setItem('attendease_user', JSON.stringify(demoUser));
+        password,
+      });
+
+      if (error) {
+        return { error };
+      }
+
+      return { error: null };
+    } catch (error) {
+      return { error: error as Error };
     }
-    setIsLoading(false);
   };
 
   const register = async (
@@ -87,38 +162,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role: UserRole,
     additionalData?: Record<string, unknown>
   ) => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const newUser: User = {
-      id: `${role}-${Date.now()}`,
-      email,
-      name,
-      role,
-      department: additionalData?.department as string || 'General',
-      createdAt: new Date(),
-    };
-    
-    setUser(newUser);
-    localStorage.setItem('attendease_user', JSON.stringify(newUser));
-    setIsLoading(false);
+    try {
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            name,
+            role,
+            department: additionalData?.department,
+            roll_number: additionalData?.rollNumber,
+            employee_id: additionalData?.employeeId,
+          },
+        },
+      });
+
+      if (error) {
+        return { error };
+      }
+
+      return { error: null };
+    } catch (error) {
+      return { error: error as Error };
+    }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem('attendease_user');
+    setSession(null);
   };
 
-  const updateUser = (updates: Partial<User>) => {
-    if (user) {
-      const updatedUser = { ...user, ...updates };
-      setUser(updatedUser);
-      localStorage.setItem('attendease_user', JSON.stringify(updatedUser));
+  const updateUser = async (updates: Partial<AppUser>) => {
+    if (!user || !session) return;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        name: updates.name,
+        department: updates.department,
+        photo_url: updates.photoURL,
+        roll_number: updates.rollNumber,
+        employee_id: updates.employeeId,
+      })
+      .eq('user_id', user.id);
+
+    if (!error && user) {
+      setUser({ ...user, ...updates });
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, session, isLoading, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

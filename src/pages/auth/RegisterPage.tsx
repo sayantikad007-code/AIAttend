@@ -29,22 +29,66 @@ export default function RegisterPage() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const validateForm = () => {
+    if (!formData.name.trim()) {
+      toast({
+        title: "Name required",
+        description: "Please enter your full name.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (!formData.email.trim()) {
+      toast({
+        title: "Email required",
+        description: "Please enter your email address.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast({
+        title: "Invalid email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (formData.password.length < 6) {
+      toast({
+        title: "Password too short",
+        description: "Password must be at least 6 characters long.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       toast({
         title: "Passwords don't match",
         description: "Please make sure your passwords match.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
+
+    return true;
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) return;
 
     setIsLoading(true);
 
     try {
-      await register(
+      const { error } = await register(
         formData.email, 
         formData.password, 
         formData.name, 
@@ -55,15 +99,34 @@ export default function RegisterPage() {
           employeeId: formData.employeeId,
         }
       );
-      toast({
-        title: "Account created!",
-        description: "Welcome to AttendEase. Your account has been created successfully.",
-      });
-      navigate(`/${formData.role}`);
+
+      if (error) {
+        let errorMessage = "Please try again or contact support.";
+        
+        if (error.message.includes('User already registered')) {
+          errorMessage = "An account with this email already exists. Please sign in.";
+        } else if (error.message.includes('Password')) {
+          errorMessage = error.message;
+        } else if (error.message.includes('Email')) {
+          errorMessage = error.message;
+        }
+        
+        toast({
+          title: "Registration failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Account created!",
+          description: "Welcome to AttendEase. Your account has been created successfully.",
+        });
+        // Navigation happens automatically via auth state change
+      }
     } catch (error) {
       toast({
         title: "Registration failed",
-        description: "Please try again or contact support.",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -183,6 +246,7 @@ export default function RegisterPage() {
                   onChange={(e) => handleChange('name', e.target.value)}
                   className="pl-10"
                   required
+                  autoComplete="name"
                 />
               </div>
             </div>
@@ -199,6 +263,7 @@ export default function RegisterPage() {
                   onChange={(e) => handleChange('email', e.target.value)}
                   className="pl-10"
                   required
+                  autoComplete="email"
                 />
               </div>
             </div>
@@ -265,6 +330,7 @@ export default function RegisterPage() {
                     onChange={(e) => handleChange('password', e.target.value)}
                     className="pl-10"
                     required
+                    autoComplete="new-password"
                   />
                 </div>
               </div>
@@ -280,6 +346,7 @@ export default function RegisterPage() {
                     onChange={(e) => handleChange('confirmPassword', e.target.value)}
                     className="pl-10"
                     required
+                    autoComplete="new-password"
                   />
                 </div>
               </div>
