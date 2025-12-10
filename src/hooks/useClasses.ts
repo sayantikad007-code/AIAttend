@@ -10,6 +10,9 @@ export interface Class {
   department: string;
   semester: string;
   room: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  proximity_radius_meters?: number | null;
 }
 
 export function useClasses() {
@@ -55,6 +58,22 @@ export function useClasses() {
     return data;
   };
 
+  const updateClass = async (classId: string, updates: Partial<Omit<Class, 'id' | 'professor_id'>>) => {
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error: updateError } = await supabase
+      .from('classes')
+      .update(updates)
+      .eq('id', classId)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+    
+    setClasses((prev) => prev.map((cls) => (cls.id === classId ? data : cls)));
+    return data;
+  };
+
   useEffect(() => {
     fetchClasses();
   }, [user]);
@@ -64,6 +83,7 @@ export function useClasses() {
     isLoading,
     error,
     createClass,
+    updateClass,
     refreshClasses: fetchClasses,
   };
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useClasses, Class } from '@/hooks/useClasses';
 import { useEnrollments } from '@/hooks/useEnrollments';
+import { LocationPicker } from '@/components/professor/LocationPicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,15 +42,18 @@ import {
   GraduationCap,
   MapPin,
   Calendar,
+  Settings,
+  Navigation,
 } from 'lucide-react';
 
 export default function ClassManagementPage() {
-  const { classes, isLoading: classesLoading, createClass, refreshClasses } = useClasses();
+  const { classes, isLoading: classesLoading, createClass, updateClass, refreshClasses } = useClasses();
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const { enrollments, isLoading: enrollmentsLoading, enrollStudent, removeEnrollment } = useEnrollments(selectedClass?.id);
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEnrollDialogOpen, setIsEnrollDialogOpen] = useState(false);
+  const [isLocationDialogOpen, setIsLocationDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [newClass, setNewClass] = useState({
@@ -58,6 +62,9 @@ export default function ClassManagementPage() {
     department: '',
     semester: '',
     room: '',
+    latitude: null as number | null,
+    longitude: null as number | null,
+    proximity_radius_meters: 50,
   });
   
   const [studentEmail, setStudentEmail] = useState('');
@@ -74,7 +81,7 @@ export default function ClassManagementPage() {
       await createClass(newClass);
       toast.success('Class created successfully');
       setIsCreateDialogOpen(false);
-      setNewClass({ subject: '', code: '', department: '', semester: '', room: '' });
+      setNewClass({ subject: '', code: '', department: '', semester: '', room: '', latitude: null, longitude: null, proximity_radius_meters: 50 });
     } catch (error) {
       console.error('Error creating class:', error);
       toast.error('Failed to create class');
@@ -114,6 +121,26 @@ export default function ClassManagementPage() {
     }
   };
 
+  const handleUpdateLocation = async (lat: number | null, lng: number | null, radius: number) => {
+    if (!selectedClass) return;
+
+    setIsSubmitting(true);
+    try {
+      const updatedClass = await updateClass(selectedClass.id, {
+        latitude: lat,
+        longitude: lng,
+        proximity_radius_meters: radius,
+      });
+      setSelectedClass(updatedClass);
+      toast.success('Location updated successfully');
+    } catch (error) {
+      console.error('Error updating location:', error);
+      toast.error('Failed to update location');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6 animate-fade-in">
@@ -130,7 +157,7 @@ export default function ClassManagementPage() {
                 Create Class
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Class</DialogTitle>
                 <DialogDescription>
@@ -187,6 +214,16 @@ export default function ClassManagementPage() {
                     />
                   </div>
                 </div>
+                
+                <LocationPicker
+                  latitude={newClass.latitude}
+                  longitude={newClass.longitude}
+                  proximityRadius={newClass.proximity_radius_meters}
+                  onLocationChange={(lat, lng, radius) => 
+                    setNewClass({ ...newClass, latitude: lat, longitude: lng, proximity_radius_meters: radius })
+                  }
+                />
+
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                     Cancel
@@ -239,6 +276,12 @@ export default function ClassManagementPage() {
                           <Badge variant="outline" className="mb-2">{cls.code}</Badge>
                           <h3 className="font-medium">{cls.subject}</h3>
                         </div>
+                        {cls.latitude && cls.longitude && (
+                          <Badge variant="secondary" className="flex items-center gap-1">
+                            <Navigation className="w-3 h-3" />
+                            GPS
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex flex-wrap items-center gap-3 mt-3 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
@@ -262,7 +305,7 @@ export default function ClassManagementPage() {
             {selectedClass ? (
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
                     <div>
                       <CardTitle className="flex items-center gap-2">
                         <Users className="w-5 h-5" />
@@ -272,46 +315,93 @@ export default function ClassManagementPage() {
                         {selectedClass.subject} ({selectedClass.code})
                       </CardDescription>
                     </div>
-                    <Dialog open={isEnrollDialogOpen} onOpenChange={setIsEnrollDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button size="sm">
-                          <UserPlus className="w-4 h-4 mr-2" />
-                          Add Student
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Enroll Student</DialogTitle>
-                          <DialogDescription>
-                            Add a student to {selectedClass.subject}
-                          </DialogDescription>
-                        </DialogHeader>
-                        <form onSubmit={handleEnrollStudent} className="space-y-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="studentEmail">Student Email</Label>
-                            <Input
-                              id="studentEmail"
-                              type="email"
-                              placeholder="student@university.edu"
-                              value={studentEmail}
-                              onChange={(e) => setStudentEmail(e.target.value)}
-                            />
-                          </div>
-                          <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setIsEnrollDialogOpen(false)}>
-                              Cancel
-                            </Button>
-                            <Button type="submit" disabled={isSubmitting}>
-                              {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                              Enroll Student
-                            </Button>
-                          </DialogFooter>
-                        </form>
-                      </DialogContent>
-                    </Dialog>
+                    <div className="flex gap-2">
+                      <Dialog open={isLocationDialogOpen} onOpenChange={setIsLocationDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button size="sm" variant="outline">
+                            <Settings className="w-4 h-4 mr-2" />
+                            GPS Settings
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Classroom GPS Location</DialogTitle>
+                            <DialogDescription>
+                              Set the GPS coordinates for proximity-based attendance
+                            </DialogDescription>
+                          </DialogHeader>
+                          <LocationPicker
+                            latitude={selectedClass.latitude}
+                            longitude={selectedClass.longitude}
+                            proximityRadius={selectedClass.proximity_radius_meters}
+                            onLocationChange={handleUpdateLocation}
+                          />
+                        </DialogContent>
+                      </Dialog>
+                      <Dialog open={isEnrollDialogOpen} onOpenChange={setIsEnrollDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button size="sm">
+                            <UserPlus className="w-4 h-4 mr-2" />
+                            Add Student
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Enroll Student</DialogTitle>
+                            <DialogDescription>
+                              Add a student to {selectedClass.subject}
+                            </DialogDescription>
+                          </DialogHeader>
+                          <form onSubmit={handleEnrollStudent} className="space-y-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="studentEmail">Student Email</Label>
+                              <Input
+                                id="studentEmail"
+                                type="email"
+                                placeholder="student@university.edu"
+                                value={studentEmail}
+                                onChange={(e) => setStudentEmail(e.target.value)}
+                              />
+                            </div>
+                            <DialogFooter>
+                              <Button type="button" variant="outline" onClick={() => setIsEnrollDialogOpen(false)}>
+                                Cancel
+                              </Button>
+                              <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                                Enroll Student
+                              </Button>
+                            </DialogFooter>
+                          </form>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
+                  {/* Location status banner */}
+                  {selectedClass.latitude && selectedClass.longitude ? (
+                    <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-3">
+                      <Navigation className="w-5 h-5 text-green-600 dark:text-green-400" />
+                      <div className="text-sm">
+                        <span className="font-medium text-green-700 dark:text-green-300">GPS Location Set</span>
+                        <span className="text-green-600 dark:text-green-400 ml-2">
+                          Radius: {selectedClass.proximity_radius_meters || 50}m
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg flex items-center gap-3">
+                      <MapPin className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                      <div className="text-sm">
+                        <span className="font-medium text-amber-700 dark:text-amber-300">No GPS Location</span>
+                        <span className="text-amber-600 dark:text-amber-400 ml-2">
+                          Set location to enable proximity check-in
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   {enrollmentsLoading ? (
                     <div className="flex items-center justify-center py-12">
                       <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
