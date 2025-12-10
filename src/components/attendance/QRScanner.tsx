@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Camera, CameraOff, CheckCircle, XCircle, Loader2 } from 'lucide-react';
@@ -20,30 +20,48 @@ export function QRScanner({ onSuccess }: QRScannerProps) {
     status?: string;
   } | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const startScanning = async () => {
     try {
+      // Clear any existing scanner first
+      if (scannerRef.current) {
+        try {
+          const state = scannerRef.current.getState();
+          if (state === Html5QrcodeScannerState.SCANNING) {
+            await scannerRef.current.stop();
+          }
+        } catch (e) {
+          console.log('Scanner cleanup:', e);
+        }
+        scannerRef.current = null;
+      }
+
+      // Create new scanner instance
       const scanner = new Html5Qrcode('qr-reader');
       scannerRef.current = scanner;
 
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1,
+      };
+
       await scanner.start(
         { facingMode: 'environment' },
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-        },
+        config,
         handleScan,
         () => {} // Ignore errors during scanning
       );
 
       setIsScanning(true);
       setScanResult(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error starting scanner:', error);
       toast({
         title: 'Camera Error',
-        description: 'Could not access camera. Please check permissions.',
+        description: error?.message || 'Could not access camera. Please check permissions.',
         variant: 'destructive',
       });
     }
@@ -52,11 +70,14 @@ export function QRScanner({ onSuccess }: QRScannerProps) {
   const stopScanning = async () => {
     if (scannerRef.current) {
       try {
-        await scannerRef.current.stop();
-        scannerRef.current = null;
+        const state = scannerRef.current.getState();
+        if (state === Html5QrcodeScannerState.SCANNING) {
+          await scannerRef.current.stop();
+        }
       } catch (error) {
         console.error('Error stopping scanner:', error);
       }
+      scannerRef.current = null;
     }
     setIsScanning(false);
   };
@@ -68,9 +89,13 @@ export function QRScanner({ onSuccess }: QRScannerProps) {
     await stopScanning();
 
     try {
+      console.log('Scanned QR data:', decodedText);
+      
       const { data, error } = await supabase.functions.invoke('verify-qr', {
         body: { qrData: decodedText },
       });
+
+      console.log('Verify response:', data, error);
 
       if (error) throw error;
 
@@ -90,6 +115,11 @@ export function QRScanner({ onSuccess }: QRScannerProps) {
         setScanResult({
           success: false,
           message: data.error || 'Verification failed',
+        });
+        toast({
+          title: 'Error',
+          description: data.error || 'Verification failed',
+          variant: 'destructive',
         });
       }
     } catch (error: any) {
@@ -164,10 +194,13 @@ export function QRScanner({ onSuccess }: QRScannerProps) {
         ) : (
           <>
             <div
+              ref={containerRef}
               id="qr-reader"
-              className={`w-full max-w-[300px] rounded-lg overflow-hidden ${
-                isScanning ? '' : 'hidden'
-              }`}
+              className="w-full max-w-[300px] rounded-lg overflow-hidden bg-secondary"
+              style={{ 
+                minHeight: isScanning ? '300px' : '0px',
+                display: isScanning ? 'block' : 'none'
+              }}
             />
             
             {!isScanning && (

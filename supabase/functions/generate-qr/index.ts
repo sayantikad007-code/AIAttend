@@ -12,8 +12,8 @@ Deno.serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -23,9 +23,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify the user's JWT
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    // Create client with the user's token to verify auth
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: authHeader },
+      },
+    });
+
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
     
     if (userError || !user) {
       console.error('Auth error:', userError);
@@ -34,6 +39,9 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // Create service role client for database operations
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { sessionId } = await req.json();
     
@@ -44,7 +52,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log('Generating QR for session:', sessionId);
+    console.log('Generating QR for session:', sessionId, 'by user:', user.id);
 
     // Verify the session exists and user is the professor
     const { data: session, error: sessionError } = await supabase
@@ -84,7 +92,7 @@ Deno.serve(async (req) => {
     const encoder = new TextEncoder();
     const key = await crypto.subtle.importKey(
       'raw',
-      encoder.encode(Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')),
+      encoder.encode(supabaseServiceKey),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign']
