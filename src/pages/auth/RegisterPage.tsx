@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { ScanFace, Mail, Lock, User, Building2, ArrowLeft, Loader2, Hash } from 'lucide-react';
-import { UserRole } from '@/types';
+import { registerSchema } from '@/lib/validations/auth';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -15,88 +15,46 @@ export default function RegisterPage() {
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'student' as UserRole,
+    role: 'student' as 'student' | 'professor',
     department: '',
     rollNumber: '',
     employeeId: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const { register } = useAuth();
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const validateForm = () => {
-    if (!formData.name.trim()) {
-      toast({
-        title: "Name required",
-        description: "Please enter your full name.",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    if (!formData.email.trim()) {
-      toast({
-        title: "Email required",
-        description: "Please enter your email address.",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      toast({
-        title: "Invalid email",
-        description: "Please enter a valid email address.",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    if (formData.password.length < 6) {
-      toast({
-        title: "Password too short",
-        description: "Password must be at least 6 characters long.",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      toast({
-        title: "Passwords don't match",
-        description: "Please make sure your passwords match.",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    return true;
-  };
-
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm()) return;
+    // Validate with Zod schema
+    const result = registerSchema.safeParse(formData);
+    if (!result.success) {
+      const firstError = result.error.errors[0];
+      toast({
+        title: "Validation error",
+        description: firstError.message,
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsLoading(true);
 
     try {
       const { error } = await register(
-        formData.email, 
-        formData.password, 
-        formData.name, 
-        formData.role,
+        result.data.email, 
+        result.data.password, 
+        result.data.name, 
+        result.data.role,
         {
-          department: formData.department,
-          rollNumber: formData.rollNumber,
-          employeeId: formData.employeeId,
+          department: result.data.department || '',
+          rollNumber: result.data.rollNumber || '',
+          employeeId: result.data.employeeId || '',
         }
       );
 
@@ -121,7 +79,6 @@ export default function RegisterPage() {
           title: "Account created!",
           description: "Welcome to AttendEase. Your account has been created successfully.",
         });
-        // Navigation happens automatically via auth state change
       }
     } catch (error) {
       toast({
@@ -230,7 +187,6 @@ export default function RegisterPage() {
                 <SelectContent>
                   <SelectItem value="student">Student</SelectItem>
                   <SelectItem value="professor">Professor</SelectItem>
-                  <SelectItem value="admin">Administrator</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -247,6 +203,7 @@ export default function RegisterPage() {
                   className="pl-10"
                   required
                   autoComplete="name"
+                  maxLength={100}
                 />
               </div>
             </div>
@@ -264,6 +221,7 @@ export default function RegisterPage() {
                   className="pl-10"
                   required
                   autoComplete="email"
+                  maxLength={255}
                 />
               </div>
             </div>
@@ -296,6 +254,7 @@ export default function RegisterPage() {
                     value={formData.rollNumber}
                     onChange={(e) => handleChange('rollNumber', e.target.value)}
                     className="pl-10"
+                    maxLength={50}
                   />
                 </div>
               </div>
@@ -312,6 +271,7 @@ export default function RegisterPage() {
                     value={formData.employeeId}
                     onChange={(e) => handleChange('employeeId', e.target.value)}
                     className="pl-10"
+                    maxLength={50}
                   />
                 </div>
               </div>
@@ -331,6 +291,7 @@ export default function RegisterPage() {
                     className="pl-10"
                     required
                     autoComplete="new-password"
+                    maxLength={128}
                   />
                 </div>
               </div>
@@ -347,6 +308,7 @@ export default function RegisterPage() {
                     className="pl-10"
                     required
                     autoComplete="new-password"
+                    maxLength={128}
                   />
                 </div>
               </div>

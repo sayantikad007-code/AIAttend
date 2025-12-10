@@ -1,27 +1,30 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { ScanFace, Mail, Lock, ArrowLeft, Loader2 } from 'lucide-react';
+import { loginSchema } from '@/lib/validations/auth';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!email || !password) {
+    // Validate with Zod schema
+    const result = loginSchema.safeParse({ email, password });
+    if (!result.success) {
+      const firstError = result.error.errors[0];
       toast({
-        title: "Missing fields",
-        description: "Please enter your email and password.",
+        title: "Validation error",
+        description: firstError.message,
         variant: "destructive",
       });
       return;
@@ -30,7 +33,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const { error } = await login(email, password);
+      const { error } = await login(result.data.email, result.data.password);
       
       if (error) {
         let errorMessage = "Please check your credentials and try again.";
@@ -53,7 +56,6 @@ export default function LoginPage() {
           title: "Welcome back!",
           description: "You've successfully logged in.",
         });
-        // Navigation happens automatically via auth state change
       }
     } catch (error) {
       toast({
@@ -139,6 +141,7 @@ export default function LoginPage() {
                     className="pl-10"
                     required
                     autoComplete="email"
+                    maxLength={255}
                   />
                 </div>
               </div>
@@ -163,6 +166,7 @@ export default function LoginPage() {
                     className="pl-10"
                     required
                     autoComplete="current-password"
+                    maxLength={128}
                   />
                 </div>
               </div>
