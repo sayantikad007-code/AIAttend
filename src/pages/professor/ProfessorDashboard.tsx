@@ -3,6 +3,7 @@ import { StatsCard } from '@/components/common/StatsCard';
 import { LiveAttendanceCard } from '@/components/common/LiveAttendanceCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useClasses } from '@/hooks/useClasses';
 import { 
   Users, 
   BookOpen, 
@@ -14,7 +15,6 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { mockClasses, mockAttendanceRecords, generateAttendanceChartData, generateMethodDistribution } from '@/data/mockData';
 import {
   BarChart,
   Bar,
@@ -28,16 +28,24 @@ import {
   Cell,
 } from 'recharts';
 
-const attendanceChartData = generateAttendanceChartData();
-const methodData = generateMethodDistribution();
+const attendanceChartData = [
+  { day: 'Mon', present: 85, late: 8, absent: 7 },
+  { day: 'Tue', present: 90, late: 5, absent: 5 },
+  { day: 'Wed', present: 82, late: 10, absent: 8 },
+  { day: 'Thu', present: 88, late: 7, absent: 5 },
+  { day: 'Fri', present: 75, late: 12, absent: 13 },
+];
+
+const methodData = [
+  { method: 'Face Recognition', value: 65, fill: 'hsl(var(--primary))' },
+  { method: 'QR Code', value: 25, fill: 'hsl(var(--accent))' },
+  { method: 'Proximity', value: 8, fill: 'hsl(var(--success))' },
+  { method: 'Manual', value: 2, fill: 'hsl(var(--muted-foreground))' },
+];
 
 export default function ProfessorDashboard() {
-  const activeSession = {
-    class: mockClasses[0],
-    startTime: '09:00',
-    checkedIn: 4,
-    total: 5,
-  };
+  const { classes, isLoading } = useClasses();
+  const firstClass = classes[0];
 
   return (
     <DashboardLayout>
@@ -52,22 +60,22 @@ export default function ProfessorDashboard() {
               </div>
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <h2 className="text-xl font-bold">{activeSession.class.subject}</h2>
-                  <Badge className="bg-white/20 border-white/30">Live</Badge>
+                  <h2 className="text-xl font-bold">{firstClass?.subject || 'No Active Session'}</h2>
+                  {firstClass && <Badge className="bg-white/20 border-white/30">Ready</Badge>}
                 </div>
                 <p className="text-sm text-white/80">
-                  {activeSession.class.code} • Room {activeSession.class.room} • Started at {activeSession.startTime}
+                  {firstClass ? `${firstClass.code} • Room ${firstClass.room}` : 'Create a class to get started'}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right">
-                <p className="text-3xl font-bold">{activeSession.checkedIn}/{activeSession.total}</p>
-                <p className="text-sm text-white/80">Students checked in</p>
+                <p className="text-3xl font-bold">{classes.length}</p>
+                <p className="text-sm text-white/80">Classes</p>
               </div>
               <Button variant="glass" asChild className="bg-white/10 hover:bg-white/20 border-white/20">
-                <Link to="/professor/attendance">
-                  View Details
+                <Link to="/professor/qr-sessions">
+                  Start Session
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Link>
               </Button>
@@ -79,30 +87,29 @@ export default function ProfessorDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatsCard
             title="Total Students"
-            value="156"
+            value="--"
             subtitle="Across all classes"
             icon={Users}
             variant="primary"
           />
           <StatsCard
             title="Active Classes"
-            value="4"
+            value={isLoading ? '...' : classes.length.toString()}
             subtitle="This semester"
             icon={BookOpen}
             variant="default"
           />
           <StatsCard
             title="Avg. Attendance"
-            value="87.5%"
+            value="--%"
             subtitle="Last 30 days"
             icon={TrendingUp}
-            trend={{ value: 2.3, isPositive: true }}
             variant="success"
           />
           <StatsCard
             title="Sessions Today"
-            value="3"
-            subtitle="1 completed, 2 remaining"
+            value="0"
+            subtitle="Start a session"
             icon={Clock}
             variant="accent"
           />
@@ -112,7 +119,7 @@ export default function ProfessorDashboard() {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Live Attendance Feed */}
           <div className="lg:col-span-2">
-            <LiveAttendanceCard records={mockAttendanceRecords} />
+            <LiveAttendanceCard records={[]} />
           </div>
 
           {/* Right Sidebar */}
@@ -222,28 +229,39 @@ export default function ProfessorDashboard() {
             </Button>
           </div>
           <div className="grid md:grid-cols-2 gap-4">
-            {mockClasses.slice(0, 4).map((cls) => (
-              <div
-                key={cls.id}
-                className="p-4 rounded-xl border border-border hover:border-primary/50 hover:shadow-md transition-all duration-300 bg-secondary/30"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <Badge variant="outline" className="mb-2">{cls.code}</Badge>
-                    <h4 className="font-medium">{cls.subject}</h4>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-primary">{cls.enrolledStudents.length}</p>
-                    <p className="text-xs text-muted-foreground">Students</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <span>{cls.room}</span>
-                  <span>•</span>
-                  <span>{cls.schedule.length}x per week</span>
-                </div>
+            {isLoading ? (
+              <div className="col-span-2 text-center py-8 text-muted-foreground">Loading classes...</div>
+            ) : classes.length === 0 ? (
+              <div className="col-span-2 text-center py-8 text-muted-foreground">
+                <p>No classes yet.</p>
+                <Button variant="outline" className="mt-4" asChild>
+                  <Link to="/professor/classes">Create Your First Class</Link>
+                </Button>
               </div>
-            ))}
+            ) : (
+              classes.slice(0, 4).map((cls) => (
+                <div
+                  key={cls.id}
+                  className="p-4 rounded-xl border border-border hover:border-primary/50 hover:shadow-md transition-all duration-300 bg-secondary/30"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <Badge variant="outline" className="mb-2">{cls.code}</Badge>
+                      <h4 className="font-medium">{cls.subject}</h4>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-primary">--</p>
+                      <p className="text-xs text-muted-foreground">Students</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span>{cls.room}</span>
+                    <span>•</span>
+                    <span>{cls.semester}</span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

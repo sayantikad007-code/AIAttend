@@ -16,7 +16,6 @@ import {
   Shield,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { mockStudents, mockClasses, generateWeeklyTrendData } from '@/data/mockData';
 import {
   LineChart,
   Line,
@@ -27,19 +26,19 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-const weeklyTrendData = generateWeeklyTrendData();
+const weeklyTrendData = [
+  { week: 'Week 1', attendance: 85 },
+  { week: 'Week 2', attendance: 88 },
+  { week: 'Week 3', attendance: 82 },
+  { week: 'Week 4', attendance: 90 },
+];
 
 const lowAttendanceStudents = [
-  { id: '1', name: 'John Doe', rollNumber: 'CS2024010', attendance: 68, photoURL: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face' },
-  { id: '2', name: 'Jane Smith', rollNumber: 'CS2024015', attendance: 72, photoURL: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face' },
-  { id: '3', name: 'Bob Wilson', rollNumber: 'CS2024022', attendance: 74, photoURL: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face' },
+  { id: '1', name: 'No alerts', rollNumber: '-', attendance: 0, photoURL: '' },
 ];
 
 const recentActivity = [
-  { action: 'New student registered', user: 'Emily Chen', time: '5 min ago', type: 'student' },
-  { action: 'Class created', user: 'Prof. Williams', time: '1 hour ago', type: 'class' },
-  { action: 'Attendance exported', user: 'Dr. Miller', time: '2 hours ago', type: 'report' },
-  { action: 'Faculty added', user: 'Admin', time: '3 hours ago', type: 'faculty' },
+  { action: 'System started', user: 'Admin', time: 'Just now', type: 'report' },
 ];
 
 export default function AdminDashboard() {
@@ -72,22 +71,21 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatsCard
             title="Total Students"
-            value="1,248"
+            value="--"
             subtitle="Active enrollments"
             icon={GraduationCap}
-            trend={{ value: 12, isPositive: true }}
             variant="primary"
           />
           <StatsCard
             title="Faculty Members"
-            value="86"
+            value="--"
             subtitle="Across departments"
             icon={UserCog}
             variant="accent"
           />
           <StatsCard
             title="Active Classes"
-            value="124"
+            value="--"
             subtitle="This semester"
             icon={BookOpen}
             variant="default"
@@ -156,21 +154,9 @@ export default function AdminDashboard() {
               Students with attendance below 75%
             </p>
             <div className="space-y-3">
-              {lowAttendanceStudents.map((student) => (
-                <div key={student.id} className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={student.photoURL} alt={student.name} />
-                    <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{student.name}</p>
-                    <p className="text-xs text-muted-foreground">{student.rollNumber}</p>
-                  </div>
-                  <Badge variant="outline" className="text-warning border-warning/50 bg-warning/10">
-                    {student.attendance}%
-                  </Badge>
-                </div>
-              ))}
+              <div className="text-center py-8 text-muted-foreground">
+                <p className="text-sm">No low attendance alerts</p>
+              </div>
             </div>
             <Button variant="outline" className="w-full mt-4" asChild>
               <Link to="/admin/students">
@@ -188,10 +174,8 @@ export default function AdminDashboard() {
             <h3 className="font-semibold text-lg mb-4">Department Overview</h3>
             <div className="space-y-4">
               {[
-                { name: 'Computer Science', students: 320, faculty: 24, attendance: 89 },
-                { name: 'Electrical Engineering', students: 280, faculty: 20, attendance: 85 },
-                { name: 'Mechanical Engineering', students: 260, faculty: 18, attendance: 82 },
-                { name: 'Business Administration', students: 200, faculty: 15, attendance: 88 },
+                { name: 'Computer Science', students: '--', faculty: '--', attendance: 0 },
+                { name: 'Electrical Engineering', students: '--', faculty: '--', attendance: 0 },
               ].map((dept) => (
                 <div key={dept.name} className="flex items-center gap-4 p-4 rounded-xl bg-secondary/50">
                   <div className="flex-1">
@@ -208,11 +192,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className={`text-lg font-bold ${
-                      dept.attendance >= 85 ? 'text-success' : 'text-warning'
-                    }`}>
-                      {dept.attendance}%
-                    </p>
+                    <p className="text-lg font-bold text-muted-foreground">--%</p>
                     <p className="text-xs text-muted-foreground">Attendance</p>
                   </div>
                 </div>

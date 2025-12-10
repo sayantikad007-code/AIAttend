@@ -3,11 +3,20 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { CheckCircle2, Clock, ScanFace, QrCode, Wifi } from 'lucide-react';
-import { AttendanceRecord } from '@/types';
-import { mockStudents } from '@/data/mockData';
+
+interface AttendanceRecordWithStudent {
+  id: string;
+  studentId: string;
+  studentName?: string;
+  studentRollNumber?: string;
+  studentPhotoUrl?: string;
+  timestamp: Date;
+  methodUsed: 'face' | 'qr' | 'proximity' | 'manual';
+  status: 'present' | 'absent' | 'late';
+}
 
 interface LiveAttendanceCardProps {
-  records: AttendanceRecord[];
+  records: AttendanceRecordWithStudent[];
   className?: string;
 }
 
@@ -25,7 +34,7 @@ const statusColors = {
 };
 
 export function LiveAttendanceCard({ records, className }: LiveAttendanceCardProps) {
-  const [animatedRecords, setAnimatedRecords] = useState<AttendanceRecord[]>([]);
+  const [animatedRecords, setAnimatedRecords] = useState<AttendanceRecordWithStudent[]>([]);
 
   useEffect(() => {
     // Animate records appearing one by one
@@ -38,10 +47,6 @@ export function LiveAttendanceCard({ records, className }: LiveAttendanceCardPro
       }, index * 200);
     });
   }, [records]);
-
-  const getStudent = (studentId: string) => {
-    return mockStudents.find(s => s.id === studentId);
-  };
 
   const formatTime = (date: Date) => {
     return new Date(date).toLocaleTimeString('en-US', {
@@ -74,7 +79,6 @@ export function LiveAttendanceCard({ records, className }: LiveAttendanceCardPro
           </div>
         ) : (
           animatedRecords.map((record, index) => {
-            const student = getStudent(record.studentId);
             const MethodIcon = methodIcons[record.methodUsed];
             
             return (
@@ -84,15 +88,15 @@ export function LiveAttendanceCard({ records, className }: LiveAttendanceCardPro
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 <Avatar className="h-10 w-10 border-2 border-background">
-                  <AvatarImage src={student?.photoURL} alt={student?.name} />
+                  <AvatarImage src={record.studentPhotoUrl} alt={record.studentName} />
                   <AvatarFallback className="gradient-bg text-primary-foreground text-sm">
-                    {student?.name?.charAt(0) || '?'}
+                    {record.studentName?.charAt(0) || '?'}
                   </AvatarFallback>
                 </Avatar>
                 
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{student?.name || 'Unknown'}</p>
-                  <p className="text-xs text-muted-foreground">{student?.rollNumber}</p>
+                  <p className="font-medium text-sm truncate">{record.studentName || 'Unknown'}</p>
+                  <p className="text-xs text-muted-foreground">{record.studentRollNumber}</p>
                 </div>
 
                 <div className="flex items-center gap-2">
