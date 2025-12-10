@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { QRScanner } from '@/components/attendance/QRScanner';
+import { ActiveSessionsCard } from '@/components/student/ActiveSessionsCard';
 import { 
   ScanFace, 
   Camera, 
@@ -20,12 +21,25 @@ import { cn } from '@/lib/utils';
 type CheckInMethod = 'face' | 'qr' | 'proximity';
 type CheckInStatus = 'idle' | 'scanning' | 'processing' | 'success' | 'error';
 
+interface SelectedClass {
+  subject: string;
+  code: string;
+  room: string;
+}
+
 export default function CheckInPage() {
-  const [selectedMethod, setSelectedMethod] = useState<CheckInMethod>('face');
+  const [selectedMethod, setSelectedMethod] = useState<CheckInMethod>('qr');
   const [status, setStatus] = useState<CheckInStatus>('idle');
   const [verificationScore, setVerificationScore] = useState<number | null>(null);
+  const [selectedClass, setSelectedClass] = useState<SelectedClass | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
+
+  const handleSelectSession = (sessionId: string, classInfo: SelectedClass) => {
+    setSelectedClass(classInfo);
+    setSelectedMethod('qr');
+    setStatus('idle');
+  };
 
   const startCamera = useCallback(async () => {
     try {
@@ -142,19 +156,24 @@ export default function CheckInPage() {
           <p className="text-muted-foreground">Choose your preferred method to mark attendance</p>
         </div>
 
-        {/* Current Class Info */}
-        <div className="rounded-2xl gradient-bg p-6 text-primary-foreground">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-white/70">Current Class</p>
-              <h2 className="text-xl font-bold">Data Structures & Algorithms</h2>
-              <p className="text-sm text-white/80">CS201 • Room 301 • Prof. Sarah Williams</p>
+        {/* Active Sessions - Real-time */}
+        <ActiveSessionsCard onSelectSession={handleSelectSession} />
+
+        {/* Selected Class Info */}
+        {selectedClass && (
+          <div className="rounded-2xl gradient-bg p-6 text-primary-foreground">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-white/70">Selected Class</p>
+                <h2 className="text-xl font-bold">{selectedClass.subject}</h2>
+                <p className="text-sm text-white/80">{selectedClass.code} • {selectedClass.room}</p>
+              </div>
+              <Badge className="bg-white/20 text-white border-white/30">
+                Ready to Check In
+              </Badge>
             </div>
-            <Badge className="bg-white/20 text-white border-white/30">
-              In Progress
-            </Badge>
           </div>
-        </div>
+        )}
 
         {/* Method Selection */}
         <div className="grid grid-cols-3 gap-4">
