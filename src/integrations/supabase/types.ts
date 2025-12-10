@@ -212,6 +212,8 @@ export type Database = {
           department: string | null
           email: string
           employee_id: string | null
+          face_embedding: string | null
+          face_registered_at: string | null
           id: string
           name: string
           photo_url: string | null
@@ -224,6 +226,8 @@ export type Database = {
           department?: string | null
           email: string
           employee_id?: string | null
+          face_embedding?: string | null
+          face_registered_at?: string | null
           id?: string
           name: string
           photo_url?: string | null
@@ -236,6 +240,8 @@ export type Database = {
           department?: string | null
           email?: string
           employee_id?: string | null
+          face_embedding?: string | null
+          face_registered_at?: string | null
           id?: string
           name?: string
           photo_url?: string | null

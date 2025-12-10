@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { QRScanner } from '@/components/attendance/QRScanner';
+import { FaceCheckIn } from '@/components/attendance/FaceCheckIn';
 import { ActiveSessionsCard } from '@/components/student/ActiveSessionsCard';
 import { 
   ScanFace, 
@@ -25,82 +26,19 @@ interface SelectedClass {
   subject: string;
   code: string;
   room: string;
+  sessionId: string;
 }
 
 export default function CheckInPage() {
-  const [selectedMethod, setSelectedMethod] = useState<CheckInMethod>('qr');
+  const [selectedMethod, setSelectedMethod] = useState<CheckInMethod>('face');
   const [status, setStatus] = useState<CheckInStatus>('idle');
-  const [verificationScore, setVerificationScore] = useState<number | null>(null);
   const [selectedClass, setSelectedClass] = useState<SelectedClass | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
 
-  const handleSelectSession = (sessionId: string, classInfo: SelectedClass) => {
-    setSelectedClass(classInfo);
-    setSelectedMethod('qr');
+  const handleSelectSession = (sessionId: string, classInfo: { subject: string; code: string; room: string }) => {
+    setSelectedClass({ ...classInfo, sessionId });
+    setSelectedMethod('face');
     setStatus('idle');
-  };
-
-  const startCamera = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user', width: 640, height: 480 } 
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      setStatus('scanning');
-    } catch (error) {
-      toast({
-        title: "Camera access denied",
-        description: "Please allow camera access to use face recognition.",
-        variant: "destructive",
-      });
-    }
-  }, [toast]);
-
-  const stopCamera = useCallback(() => {
-    if (videoRef.current?.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-    }
-  }, []);
-
-  const handleFaceVerification = async () => {
-    setStatus('processing');
-    
-    // Simulate AI processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const score = 0.85 + Math.random() * 0.14; // 85-99% similarity
-    setVerificationScore(score);
-    
-    if (score >= 0.85) {
-      setStatus('success');
-      stopCamera();
-      toast({
-        title: "Check-in successful!",
-        description: `Verified with ${(score * 100).toFixed(1)}% confidence.`,
-      });
-    } else {
-      setStatus('error');
-      toast({
-        title: "Verification failed",
-        description: "Face not recognized. Please try again or use QR code.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleQRCheckIn = async () => {
-    setStatus('processing');
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setStatus('success');
-    toast({
-      title: "Check-in successful!",
-      description: "QR code verified successfully.",
-    });
   };
 
   const handleProximityCheckIn = async () => {
@@ -115,8 +53,6 @@ export default function CheckInPage() {
 
   const resetCheckIn = () => {
     setStatus('idle');
-    setVerificationScore(null);
-    stopCamera();
   };
 
   const methods = [
@@ -212,87 +148,17 @@ export default function CheckInPage() {
           {/* Face Recognition */}
           {selectedMethod === 'face' && (
             <div className="p-8">
-              <div className="relative aspect-video max-w-lg mx-auto rounded-2xl overflow-hidden bg-secondary">
-                {status === 'idle' && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <Camera className="w-16 h-16 text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground mb-4">Camera preview will appear here</p>
-                    <Button variant="gradient" onClick={startCamera}>
-                      <Camera className="w-4 h-4 mr-2" />
-                      Start Camera
-                    </Button>
-                  </div>
-                )}
-
-                {(status === 'scanning' || status === 'processing') && (
-                  <>
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      className="w-full h-full object-cover"
-                    />
-                    {/* Face detection overlay */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className={cn(
-                        "w-48 h-48 border-4 rounded-full transition-all duration-500",
-                        status === 'processing' 
-                          ? "border-primary animate-pulse" 
-                          : "border-white/50"
-                      )}>
-                        <div className={cn(
-                          "w-full h-full rounded-full border-4 border-dashed",
-                          status === 'processing' 
-                            ? "border-primary animate-spin" 
-                            : "border-white/30"
-                        )} style={{ animationDuration: '3s' }} />
-                      </div>
-                    </div>
-                    {status === 'processing' && (
-                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-primary/90 text-primary-foreground text-sm flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Verifying face...
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {status === 'success' && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-success/10">
-                    <div className="w-24 h-24 rounded-full bg-success/20 flex items-center justify-center mb-4 animate-scale-in">
-                      <CheckCircle2 className="w-12 h-12 text-success" />
-                    </div>
-                    <h3 className="text-xl font-bold text-success mb-2">Check-in Successful!</h3>
-                    {verificationScore && (
-                      <p className="text-muted-foreground">
-                        Confidence: {(verificationScore * 100).toFixed(1)}%
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {status === 'error' && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-destructive/10">
-                    <div className="w-24 h-24 rounded-full bg-destructive/20 flex items-center justify-center mb-4 animate-scale-in">
-                      <AlertCircle className="w-12 h-12 text-destructive" />
-                    </div>
-                    <h3 className="text-xl font-bold text-destructive mb-2">Verification Failed</h3>
-                    <p className="text-muted-foreground mb-4">Face not recognized</p>
-                    <Button variant="outline" onClick={resetCheckIn}>
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Try Again
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              {status === 'scanning' && (
-                <div className="flex justify-center mt-6">
-                  <Button variant="gradient" size="lg" onClick={handleFaceVerification}>
-                    <ScanFace className="w-5 h-5 mr-2" />
-                    Verify & Check In
-                  </Button>
+              {selectedClass ? (
+                <FaceCheckIn
+                  sessionId={selectedClass.sessionId}
+                  onSuccess={() => {
+                    setStatus('success');
+                  }}
+                />
+              ) : (
+                <div className="text-center py-12">
+                  <ScanFace className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Select an active session above to check in with face recognition</p>
                 </div>
               )}
             </div>

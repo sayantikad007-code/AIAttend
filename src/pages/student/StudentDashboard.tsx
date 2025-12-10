@@ -14,6 +14,7 @@ import {
   TrendingUp,
   ArrowRight,
   MapPin,
+  Camera,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -70,13 +71,21 @@ export default function StudentDashboard() {
               <p className="text-muted-foreground">Ready for today's classes? Your attendance is looking great!</p>
             </div>
           </div>
-          <Button variant="gradient" size="lg" asChild className="group">
-            <Link to="/student/check-in">
-              <ScanFace className="w-5 h-5" />
-              Quick Check-in
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
-          </Button>
+          <div className="flex gap-3">
+            <Button variant="outline" asChild>
+              <Link to="/student/face-registration">
+                <Camera className="w-4 h-4 mr-2" />
+                Register Face
+              </Link>
+            </Button>
+            <Button variant="gradient" size="lg" asChild className="group">
+              <Link to="/student/check-in">
+                <ScanFace className="w-5 h-5" />
+                Quick Check-in
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Stats Grid */}

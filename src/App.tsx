@@ -11,6 +11,7 @@ import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import CheckInPage from "./pages/student/CheckInPage";
+import FaceRegistrationPage from "./pages/student/FaceRegistrationPage";
 import ProfessorDashboard from "./pages/professor/ProfessorDashboard";
 import QRSessionsPage from "./pages/professor/QRSessionsPage";
 import ClassManagementPage from "./pages/professor/ClassManagementPage";
@@ -92,6 +93,7 @@ function AppRoutes() {
       {/* Student Routes */}
       <Route path="/student" element={<ProtectedRoute allowedRoles={['student']}><StudentDashboard /></ProtectedRoute>} />
       <Route path="/student/check-in" element={<ProtectedRoute allowedRoles={['student']}><CheckInPage /></ProtectedRoute>} />
+      <Route path="/student/face-registration" element={<ProtectedRoute allowedRoles={['student']}><FaceRegistrationPage /></ProtectedRoute>} />
       <Route path="/student/schedule" element={<ProtectedRoute allowedRoles={['student']}><StudentDashboard /></ProtectedRoute>} />
       <Route path="/student/history" element={<ProtectedRoute allowedRoles={['student']}><StudentDashboard /></ProtectedRoute>} />
       <Route path="/student/profile" element={<ProtectedRoute allowedRoles={['student']}><StudentDashboard /></ProtectedRoute>} />
