@@ -15,6 +15,7 @@ import {
   ArrowRight,
   MapPin,
   Camera,
+  AlertCircle,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -26,6 +27,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 const attendanceData = [
   { week: 'W1', attendance: 95 },
@@ -53,31 +56,83 @@ const recentAttendance = [
 
 export default function StudentDashboard() {
   const { user } = useAuth();
+  const [faceRegistered, setFaceRegistered] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const checkFaceRegistration = async () => {
+      if (!user?.id) return;
+      const { data } = await supabase
+        .from('profiles')
+        .select('face_embedding')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      setFaceRegistered(!!data?.face_embedding);
+    };
+    checkFaceRegistration();
+  }, [user?.id]);
 
   return (
     <DashboardLayout>
       <div className="space-y-8 animate-fade-in">
+        {/* Face Registration Status Banner */}
+        {faceRegistered === false && (
+          <div className="flex items-center gap-3 p-4 rounded-xl border border-orange-500/30 bg-orange-500/10">
+            <AlertCircle className="w-5 h-5 text-orange-500 shrink-0" />
+            <div className="flex-1">
+              <p className="font-medium text-orange-600 dark:text-orange-400">Face not registered</p>
+              <p className="text-sm text-muted-foreground">Register your face to enable quick check-in for attendance.</p>
+            </div>
+            <Button size="sm" asChild>
+              <Link to="/student/face-registration">
+                <Camera className="w-4 h-4 mr-2" />
+                Register Now
+              </Link>
+            </Button>
+          </div>
+        )}
+
         {/* Welcome Section */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16 border-4 border-primary/20 shadow-glow-sm">
-              <AvatarImage src={user?.photoURL} alt={user?.name} />
-              <AvatarFallback className="gradient-bg text-primary-foreground text-xl">
-                {user?.name?.charAt(0) || 'S'}
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="h-16 w-16 border-4 border-primary/20 shadow-glow-sm">
+                <AvatarImage src={user?.photoURL} alt={user?.name} />
+                <AvatarFallback className="gradient-bg text-primary-foreground text-xl">
+                  {user?.name?.charAt(0) || 'S'}
+                </AvatarFallback>
+              </Avatar>
+              {faceRegistered !== null && (
+                <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center ${faceRegistered ? 'bg-green-500' : 'bg-orange-500'}`}>
+                  {faceRegistered ? (
+                    <CheckCircle2 className="w-4 h-4 text-white" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-white" />
+                  )}
+                </div>
+              )}
+            </div>
             <div>
-              <h1 className="text-2xl font-bold">Good morning, {user?.name?.split(' ')[0]}!</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold">Good morning, {user?.name?.split(' ')[0]}!</h1>
+                {faceRegistered && (
+                  <Badge variant="outline" className="border-green-500/50 text-green-600 dark:text-green-400">
+                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                    Face Verified
+                  </Badge>
+                )}
+              </div>
               <p className="text-muted-foreground">Ready for today's classes? Your attendance is looking great!</p>
             </div>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" asChild>
-              <Link to="/student/face-registration">
-                <Camera className="w-4 h-4 mr-2" />
-                Register Face
-              </Link>
-            </Button>
+            {!faceRegistered && (
+              <Button variant="outline" asChild>
+                <Link to="/student/face-registration">
+                  <Camera className="w-4 h-4 mr-2" />
+                  Register Face
+                </Link>
+              </Button>
+            )}
             <Button variant="gradient" size="lg" asChild className="group">
               <Link to="/student/check-in">
                 <ScanFace className="w-5 h-5" />
