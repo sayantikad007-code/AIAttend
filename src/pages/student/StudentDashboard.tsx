@@ -16,7 +16,6 @@ import {
   MapPin,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { mockClasses } from '@/data/mockData';
 import {
   AreaChart,
   Area,
@@ -39,27 +38,16 @@ const attendanceData = [
 const upcomingClasses = [
   {
     id: '1',
-    subject: 'Data Structures & Algorithms',
-    code: 'CS201',
-    time: '09:00 - 10:30',
-    room: 'Room 301',
+    subject: 'No upcoming classes',
+    code: '--',
+    time: '--',
+    room: '--',
     status: 'upcoming',
-  },
-  {
-    id: '2',
-    subject: 'Machine Learning',
-    code: 'CS401',
-    time: '14:00 - 15:30',
-    room: 'Room 205',
-    status: 'later',
   },
 ];
 
 const recentAttendance = [
-  { subject: 'Data Structures', date: 'Today', status: 'present', method: 'face' },
-  { subject: 'Machine Learning', date: 'Yesterday', status: 'present', method: 'face' },
-  { subject: 'Database Systems', date: 'Dec 6', status: 'late', method: 'qr' },
-  { subject: 'Data Structures', date: 'Dec 5', status: 'present', method: 'face' },
+  { subject: 'No recent attendance', date: '--', status: 'present', method: 'face' },
 ];
 
 export default function StudentDashboard() {
@@ -95,29 +83,28 @@ export default function StudentDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatsCard
             title="Overall Attendance"
-            value="92%"
+            value="--%"
             subtitle="This semester"
             icon={TrendingUp}
-            trend={{ value: 3, isPositive: true }}
             variant="primary"
           />
           <StatsCard
             title="Classes Today"
-            value="3"
-            subtitle="2 remaining"
+            value="--"
+            subtitle="Check schedule"
             icon={Calendar}
             variant="default"
           />
           <StatsCard
             title="Present Days"
-            value="45"
-            subtitle="Out of 49 days"
+            value="--"
+            subtitle="This semester"
             icon={CheckCircle2}
             variant="success"
           />
           <StatsCard
             title="Enrolled Courses"
-            value="5"
+            value="--"
             subtitle="Active courses"
             icon={BookOpen}
             variant="accent"
@@ -140,41 +127,10 @@ export default function StudentDashboard() {
               </div>
 
               <div className="space-y-4">
-                {upcomingClasses.map((cls, index) => (
-                  <div
-                    key={cls.id}
-                    className={`flex items-center gap-4 p-4 rounded-xl transition-all duration-300 ${
-                      cls.status === 'upcoming' 
-                        ? 'bg-primary/5 border-2 border-primary/20' 
-                        : 'bg-secondary/50 hover:bg-secondary'
-                    }`}
-                  >
-                    <div className={`w-1 h-16 rounded-full ${
-                      cls.status === 'upcoming' ? 'gradient-bg' : 'bg-muted-foreground/30'
-                    }`} />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-medium">{cls.subject}</h4>
-                        <Badge variant="outline" className="text-xs">{cls.code}</Badge>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" />
-                          {cls.time}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-3.5 h-3.5" />
-                          {cls.room}
-                        </span>
-                      </div>
-                    </div>
-                    {cls.status === 'upcoming' && (
-                      <Button variant="gradient" size="sm" asChild>
-                        <Link to="/student/check-in">Check In</Link>
-                      </Button>
-                    )}
-                  </div>
-                ))}
+                <div className="text-center py-8 text-muted-foreground">
+                  <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No classes scheduled for today</p>
+                </div>
               </div>
             </div>
 
@@ -223,23 +179,9 @@ export default function StudentDashboard() {
             {/* Course Progress */}
             <div className="rounded-2xl border border-border bg-card p-6">
               <h3 className="font-semibold text-lg mb-4">Course Progress</h3>
-              <div className="space-y-4">
-                {mockClasses.slice(0, 3).map((cls) => {
-                  const progress = Math.floor(Math.random() * 20) + 75;
-                  return (
-                    <div key={cls.id} className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium truncate flex-1">{cls.code}</span>
-                        <span className={`font-semibold ${
-                          progress >= 85 ? 'text-success' : progress >= 75 ? 'text-warning' : 'text-destructive'
-                        }`}>
-                          {progress}%
-                        </span>
-                      </div>
-                      <Progress value={progress} className="h-2" />
-                    </div>
-                  );
-                })}
+              <div className="text-center py-8 text-muted-foreground">
+                <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p className="text-sm">Enroll in courses to see progress</p>
               </div>
             </div>
 
@@ -251,27 +193,9 @@ export default function StudentDashboard() {
                   <Link to="/student/history">View all</Link>
                 </Button>
               </div>
-              <div className="space-y-3">
-                {recentAttendance.map((item, index) => (
-                  <div key={index} className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50 transition-colors">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      item.status === 'present' ? 'bg-success/10 text-success' : 
-                      item.status === 'late' ? 'bg-warning/10 text-warning' : 
-                      'bg-destructive/10 text-destructive'
-                    }`}>
-                      {item.status === 'present' ? <CheckCircle2 className="w-4 h-4" /> :
-                       item.status === 'late' ? <Clock className="w-4 h-4" /> :
-                       <Clock className="w-4 h-4" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{item.subject}</p>
-                      <p className="text-xs text-muted-foreground">{item.date}</p>
-                    </div>
-                    <Badge variant="outline" className="text-xs capitalize">
-                      {item.method}
-                    </Badge>
-                  </div>
-                ))}
+              <div className="text-center py-8 text-muted-foreground">
+                <CheckCircle2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p className="text-sm">No recent attendance records</p>
               </div>
             </div>
           </div>
