@@ -77,23 +77,13 @@ export function useEnrollments(classId?: string) {
   const enrollStudent = async (studentEmail: string) => {
     if (!classId) throw new Error('No class selected');
 
-    // First find the student by email
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('user_id')
-      .eq('email', studentEmail)
-      .maybeSingle();
+    // Use security definer function to find student by email (bypasses RLS)
+    const { data: studentUserId, error: lookupError } = await supabase
+      .rpc('get_student_by_email', { _email: studentEmail });
 
-    if (profileError) throw profileError;
-    if (!profile) throw new Error('Student not found with this email');
-
-    // Check if user is a student using security definer function
-    const { data: isStudent, error: roleError } = await supabase
-      .rpc('is_student', { _user_id: profile.user_id });
-
-    if (roleError) throw roleError;
-    if (!isStudent) {
-      throw new Error('This email does not belong to a student account');
+    if (lookupError) throw lookupError;
+    if (!studentUserId) {
+      throw new Error('Student not found with this email');
     }
 
     // Check if already enrolled
@@ -101,7 +91,7 @@ export function useEnrollments(classId?: string) {
       .from('class_enrollments')
       .select('id')
       .eq('class_id', classId)
-      .eq('student_id', profile.user_id)
+      .eq('student_id', studentUserId)
       .maybeSingle();
 
     if (existing) throw new Error('Student is already enrolled in this class');
@@ -111,7 +101,7 @@ export function useEnrollments(classId?: string) {
       .from('class_enrollments')
       .insert({
         class_id: classId,
-        student_id: profile.user_id,
+        student_id: studentUserId,
       })
       .select()
       .single();
