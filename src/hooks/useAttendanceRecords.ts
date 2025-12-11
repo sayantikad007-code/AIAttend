@@ -43,11 +43,6 @@ export function useAttendanceRecords(classId?: string, sessionId?: string) {
           method_used,
           status,
           verification_score,
-          profiles!attendance_records_student_id_fkey (
-            name,
-            roll_number,
-            photo_url
-          ),
           classes (
             subject,
             code
@@ -66,9 +61,25 @@ export function useAttendanceRecords(classId?: string, sessionId?: string) {
 
       if (fetchError) throw fetchError;
 
+      // Fetch student profiles separately
+      const studentIds = [...new Set((data || []).map((r: any) => r.student_id))];
+      let profilesMap: Record<string, any> = {};
+      
+      if (studentIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, name, roll_number, photo_url')
+          .in('user_id', studentIds);
+        
+        profilesMap = (profiles || []).reduce((acc: any, p: any) => {
+          acc[p.user_id] = p;
+          return acc;
+        }, {});
+      }
+
       const formattedRecords = (data || []).map((record: any) => ({
         ...record,
-        student: record.profiles,
+        student: profilesMap[record.student_id] || null,
         class: record.classes,
       }));
 
@@ -99,8 +110,8 @@ export function useAttendanceRecords(classId?: string, sessionId?: string) {
           table: 'attendance_records',
         },
         async (payload) => {
-          // Fetch the complete record with student info
-          const { data } = await supabase
+          // Fetch the complete record
+          const { data: record } = await supabase
             .from('attendance_records')
             .select(`
               id,
@@ -111,11 +122,6 @@ export function useAttendanceRecords(classId?: string, sessionId?: string) {
               method_used,
               status,
               verification_score,
-              profiles!attendance_records_student_id_fkey (
-                name,
-                roll_number,
-                photo_url
-              ),
               classes (
                 subject,
                 code
@@ -124,11 +130,18 @@ export function useAttendanceRecords(classId?: string, sessionId?: string) {
             .eq('id', payload.new.id)
             .single();
 
-          if (data) {
+          if (record) {
+            // Fetch student profile
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('user_id, name, roll_number, photo_url')
+              .eq('user_id', record.student_id)
+              .single();
+
             const newRecord = {
-              ...data,
-              student: (data as any).profiles,
-              class: (data as any).classes,
+              ...record,
+              student: profile || null,
+              class: (record as any).classes,
             };
 
             // Only add if matches current filter
