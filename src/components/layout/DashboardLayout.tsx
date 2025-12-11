@@ -16,7 +16,6 @@ import {
   LayoutDashboard,
   Users,
   BookOpen,
-  Calendar,
   FileText,
   Settings,
   LogOut,
@@ -27,37 +26,37 @@ import {
   GraduationCap,
   UserCog,
   BarChart3,
-  QrCode,
+  PlayCircle,
+  History,
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
+// Student: 4 items - Dashboard, Check In, My Classes, Attendance
 const studentNavItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/student' },
   { icon: ScanFace, label: 'Check In', path: '/student/check-in' },
-  { icon: Calendar, label: 'Schedule', path: '/student/schedule' },
-  { icon: FileText, label: 'History', path: '/student/history' },
-  { icon: Settings, label: 'Profile', path: '/student/profile' },
+  { icon: BookOpen, label: 'My Classes', path: '/student/classes' },
+  { icon: History, label: 'Attendance', path: '/student/attendance' },
 ];
 
+// Professor: 4 items - Dashboard, Sessions, Classes, Reports
 const professorNavItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/professor' },
-  { icon: Users, label: 'Attendance', path: '/professor/attendance' },
+  { icon: PlayCircle, label: 'Sessions', path: '/professor/sessions' },
   { icon: BookOpen, label: 'Classes', path: '/professor/classes' },
   { icon: BarChart3, label: 'Reports', path: '/professor/reports' },
-  { icon: QrCode, label: 'QR Sessions', path: '/professor/qr-sessions' },
-  { icon: Settings, label: 'Settings', path: '/professor/settings' },
 ];
 
+// Admin: 5 items - Dashboard, Students, Faculty, Classes, Analytics
 const adminNavItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
   { icon: GraduationCap, label: 'Students', path: '/admin/students' },
   { icon: UserCog, label: 'Faculty', path: '/admin/faculty' },
   { icon: BookOpen, label: 'Classes', path: '/admin/classes' },
   { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
-  { icon: Settings, label: 'Settings', path: '/admin/settings' },
 ];
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
@@ -99,10 +98,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
           <span className="font-bold text-lg">AttendEase</span>
         </Link>
-        <button className="p-2 rounded-lg hover:bg-secondary transition-colors relative">
+        <Button variant="ghost" size="icon" className="relative">
           <Bell className="w-5 h-5" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
-        </button>
+          <span className="absolute top-2 right-2 w-2 h-2 bg-destructive rounded-full" />
+        </Button>
       </header>
 
       {/* Sidebar */}
@@ -149,39 +148,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               );
             })}
           </nav>
-
-          {/* User Profile */}
-          <div className="p-4 border-t border-border">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-secondary transition-colors">
-                  <Avatar className="h-10 w-10 border-2 border-primary/20">
-                    <AvatarImage src={user?.photoURL} alt={user?.name} />
-                    <AvatarFallback className="gradient-bg text-primary-foreground">
-                      {user?.name?.charAt(0) || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 text-left">
-                    <p className="font-medium text-sm truncate">{user?.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-                  </div>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate(`/${user?.role}/profile`)}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-destructive">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
         </div>
       </aside>
 
