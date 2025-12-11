@@ -132,11 +132,10 @@ Deno.serve(async (req) => {
     
     const signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signature)));
 
-    // Update session with the secret
+    // Upsert secret to session_secrets table (professor-only access)
     await supabase
-      .from('attendance_sessions')
-      .update({ qr_secret: qrSecret })
-      .eq('id', sessionId);
+      .from('session_secrets')
+      .upsert({ session_id: sessionId, qr_secret: qrSecret }, { onConflict: 'session_id' });
 
     const qrData = {
       ...payload,

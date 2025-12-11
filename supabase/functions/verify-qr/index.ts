@@ -114,8 +114,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify secret matches
-    if (session.qr_secret !== secret) {
+    // Verify secret matches from session_secrets table (students can't access this)
+    const { data: sessionSecret, error: secretError } = await supabase
+      .from('session_secrets')
+      .select('qr_secret')
+      .eq('session_id', sessionId)
+      .maybeSingle();
+
+    if (secretError || !sessionSecret || sessionSecret.qr_secret !== secret) {
       return new Response(JSON.stringify({ error: 'QR code is no longer valid' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

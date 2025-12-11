@@ -70,7 +70,6 @@ export type Database = {
           end_time: string | null
           id: string
           is_active: boolean
-          qr_secret: string | null
           start_time: string
           updated_at: string
         }
@@ -81,7 +80,6 @@ export type Database = {
           end_time?: string | null
           id?: string
           is_active?: boolean
-          qr_secret?: string | null
           start_time: string
           updated_at?: string
         }
@@ -92,7 +90,6 @@ export type Database = {
           end_time?: string | null
           id?: string
           is_active?: boolean
-          qr_secret?: string | null
           start_time?: string
           updated_at?: string
         }
@@ -277,6 +274,35 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      session_secrets: {
+        Row: {
+          created_at: string
+          id: string
+          qr_secret: string
+          session_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          qr_secret: string
+          session_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          qr_secret?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_secrets_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: true
+            referencedRelation: "attendance_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
