@@ -173,6 +173,7 @@ export type Database = {
           created_at: string
           department: string
           id: string
+          join_code: string
           latitude: number | null
           longitude: number | null
           professor_id: string
@@ -187,6 +188,7 @@ export type Database = {
           created_at?: string
           department: string
           id?: string
+          join_code: string
           latitude?: number | null
           longitude?: number | null
           professor_id: string
@@ -201,6 +203,7 @@ export type Database = {
           created_at?: string
           department?: string
           id?: string
+          join_code?: string
           latitude?: number | null
           longitude?: number | null
           professor_id?: string
@@ -330,6 +333,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_join_code: { Args: never; Returns: string }
       get_student_by_email: { Args: { _email: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
@@ -347,6 +351,7 @@ export type Database = {
         Returns: boolean
       }
       is_student: { Args: { _user_id: string }; Returns: boolean }
+      join_class_by_code: { Args: { _code: string }; Returns: string }
     }
     Enums: {
       app_role: "student" | "professor" | "admin"

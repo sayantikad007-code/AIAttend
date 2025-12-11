@@ -27,14 +27,18 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { useStudentStats } from '@/hooks/useStudentStats';
+import { ActiveSessionsBanner } from '@/components/student/ActiveSessionsBanner';
+import { JoinClassCard } from '@/components/student/JoinClassCard';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
-  const { courses, stats, weeklyData, isLoading, faceRegistered } = useStudentStats();
+  const { courses, stats, weeklyData, isLoading, faceRegistered, refreshStats } = useStudentStats();
 
   return (
     <DashboardLayout>
       <div className="space-y-8 animate-fade-in">
+        {/* Active Sessions Banner */}
+        <ActiveSessionsBanner />
         {/* Face Registration Status Banner */}
         {faceRegistered === false && (
           <div className="flex items-center gap-3 p-4 rounded-xl border border-orange-500/30 bg-orange-500/10">
@@ -164,6 +168,7 @@ export default function StudentDashboard() {
                   <h3 className="font-semibold text-lg">Enrolled Courses</h3>
                   <p className="text-sm text-muted-foreground">Your course attendance breakdown</p>
                 </div>
+                <JoinClassCard onJoined={refreshStats} />
               </div>
 
               {isLoading ? (

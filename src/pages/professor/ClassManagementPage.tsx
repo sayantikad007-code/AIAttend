@@ -44,6 +44,8 @@ import {
   Calendar,
   Settings,
   Navigation,
+  KeyRound,
+  Copy,
 } from 'lucide-react';
 
 export default function ClassManagementPage() {
@@ -292,6 +294,22 @@ export default function ClassManagementPage() {
                           <Calendar className="w-3 h-3" />
                           {cls.semester}
                         </span>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-border">
+                        <div 
+                          className="flex items-center justify-between bg-muted/50 rounded-lg px-3 py-2 cursor-pointer hover:bg-muted transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard.writeText(cls.join_code);
+                            toast.success('Join code copied!');
+                          }}
+                        >
+                          <span className="flex items-center gap-2 text-sm">
+                            <KeyRound className="w-4 h-4 text-primary" />
+                            <span className="font-mono font-semibold tracking-wider">{cls.join_code}</span>
+                          </span>
+                          <Copy className="w-4 h-4 text-muted-foreground" />
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
