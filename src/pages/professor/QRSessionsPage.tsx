@@ -21,17 +21,54 @@ import {
   Users,
   Clock,
   Loader2,
+  MapPin,
 } from 'lucide-react';
 
 export default function QRSessionsPage() {
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [isStarting, setIsStarting] = useState(false);
-  const { classes, isLoading: classesLoading } = useClasses();
+  const [locationStatus, setLocationStatus] = useState<string>('');
+  const { classes, isLoading: classesLoading, updateClass } = useClasses();
   const { sessions, createSession, endSession, refreshSessions } = useAttendanceSessions();
   const { toast } = useToast();
 
   const activeSession = sessions.find(s => s.is_active && s.class_id === selectedClassId);
   const selectedClass = classes.find(c => c.id === selectedClassId);
+
+  const captureLocation = (): Promise<{ latitude: number; longitude: number } | null> => {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        toast({ 
+          title: 'Location not supported', 
+          description: 'Your browser does not support geolocation. Proximity check-in will use existing class location.',
+          variant: 'destructive' 
+        });
+        resolve(null);
+        return;
+      }
+
+      setLocationStatus('Capturing location...');
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setLocationStatus('');
+          resolve({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        },
+        (error) => {
+          setLocationStatus('');
+          console.error('Geolocation error:', error);
+          toast({ 
+            title: 'Location access denied', 
+            description: 'Could not get your location. Proximity check-in will use existing class location.',
+          });
+          resolve(null);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    });
+  };
 
   const handleStartSession = async () => {
     if (!selectedClassId) {
@@ -41,6 +78,21 @@ export default function QRSessionsPage() {
 
     setIsStarting(true);
     try {
+      // Capture professor's current location for proximity verification
+      const location = await captureLocation();
+      
+      if (location) {
+        // Update class location with professor's current position
+        await updateClass(selectedClassId, {
+          latitude: location.latitude,
+          longitude: location.longitude,
+        });
+        toast({ 
+          title: 'Location captured', 
+          description: 'Classroom location updated for proximity check-in',
+        });
+      }
+
       await createSession(selectedClassId);
       toast({ title: 'Session started', description: 'QR code is now active for students' });
     } catch (error) {
@@ -124,24 +176,36 @@ export default function QRSessionsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {!activeSession ? (
-                <Button 
-                  onClick={handleStartSession} 
-                  disabled={isStarting}
-                  className="w-full"
-                  size="lg"
-                >
-                  {isStarting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Starting...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="h-4 w-4 mr-2" />
-                      Start Attendance Session
-                    </>
+                <div className="space-y-3">
+                  {locationStatus && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <MapPin className="h-4 w-4 animate-pulse" />
+                      {locationStatus}
+                    </div>
                   )}
-                </Button>
+                  <Button 
+                    onClick={handleStartSession} 
+                    disabled={isStarting}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {isStarting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        {locationStatus || 'Starting...'}
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-4 w-4 mr-2" />
+                        Start Attendance Session
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-xs text-muted-foreground text-center">
+                    <MapPin className="h-3 w-3 inline mr-1" />
+                    Your location will be captured for proximity check-in
+                  </p>
+                </div>
               ) : (
                 <div className="space-y-4">
                   <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
