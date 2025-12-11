@@ -15,6 +15,7 @@ import FaceRegistrationPage from "./pages/student/FaceRegistrationPage";
 import ProfessorDashboard from "./pages/professor/ProfessorDashboard";
 import QRSessionsPage from "./pages/professor/QRSessionsPage";
 import ClassManagementPage from "./pages/professor/ClassManagementPage";
+import AttendanceReportsPage from "./pages/professor/AttendanceReportsPage";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import NotFound from "./pages/NotFound";
 
@@ -102,7 +103,7 @@ function AppRoutes() {
       <Route path="/professor" element={<ProtectedRoute allowedRoles={['professor']}><ProfessorDashboard /></ProtectedRoute>} />
       <Route path="/professor/attendance" element={<ProtectedRoute allowedRoles={['professor']}><ProfessorDashboard /></ProtectedRoute>} />
       <Route path="/professor/classes" element={<ProtectedRoute allowedRoles={['professor']}><ClassManagementPage /></ProtectedRoute>} />
-      <Route path="/professor/reports" element={<ProtectedRoute allowedRoles={['professor']}><ProfessorDashboard /></ProtectedRoute>} />
+      <Route path="/professor/reports" element={<ProtectedRoute allowedRoles={['professor']}><AttendanceReportsPage /></ProtectedRoute>} />
       <Route path="/professor/qr-sessions" element={<ProtectedRoute allowedRoles={['professor']}><QRSessionsPage /></ProtectedRoute>} />
       <Route path="/professor/settings" element={<ProtectedRoute allowedRoles={['professor']}><ProfessorDashboard /></ProtectedRoute>} />
 

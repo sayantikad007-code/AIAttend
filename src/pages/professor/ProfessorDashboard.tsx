@@ -1,9 +1,12 @@
+import { useMemo } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StatsCard } from '@/components/common/StatsCard';
 import { LiveAttendanceCard } from '@/components/common/LiveAttendanceCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useClasses } from '@/hooks/useClasses';
+import { useAttendanceRecords } from '@/hooks/useAttendanceRecords';
+import { useAttendanceSessions } from '@/hooks/useAttendanceSessions';
 import { 
   Users, 
   BookOpen, 
@@ -28,24 +31,60 @@ import {
   Cell,
 } from 'recharts';
 
-const attendanceChartData = [
-  { day: 'Mon', present: 85, late: 8, absent: 7 },
-  { day: 'Tue', present: 90, late: 5, absent: 5 },
-  { day: 'Wed', present: 82, late: 10, absent: 8 },
-  { day: 'Thu', present: 88, late: 7, absent: 5 },
-  { day: 'Fri', present: 75, late: 12, absent: 13 },
-];
-
-const methodData = [
-  { method: 'Face Recognition', value: 65, fill: 'hsl(var(--primary))' },
-  { method: 'QR Code', value: 25, fill: 'hsl(var(--accent))' },
-  { method: 'Proximity', value: 8, fill: 'hsl(var(--success))' },
-  { method: 'Manual', value: 2, fill: 'hsl(var(--muted-foreground))' },
-];
-
 export default function ProfessorDashboard() {
   const { classes, isLoading } = useClasses();
+  const { records } = useAttendanceRecords();
+  const { sessions } = useAttendanceSessions();
   const firstClass = classes[0];
+
+  // Transform records to LiveAttendanceCard format
+  const liveRecords = useMemo(() => {
+    return records.slice(0, 20).map((r) => ({
+      id: r.id,
+      studentId: r.student_id,
+      studentName: r.student?.name,
+      studentRollNumber: r.student?.roll_number || undefined,
+      studentPhotoUrl: r.student?.photo_url || undefined,
+      timestamp: new Date(r.timestamp),
+      methodUsed: r.method_used as 'face' | 'qr' | 'proximity' | 'manual',
+      status: r.status as 'present' | 'absent' | 'late',
+    }));
+  }, [records]);
+
+  // Calculate method distribution from real data
+  const methodData = useMemo(() => {
+    const total = records.length || 1;
+    const face = records.filter((r) => r.method_used === 'face').length;
+    const qr = records.filter((r) => r.method_used === 'qr').length;
+    const proximity = records.filter((r) => r.method_used === 'proximity').length;
+    const manual = records.filter((r) => r.method_used === 'manual').length;
+
+    return [
+      { method: 'Face Recognition', value: Math.round((face / total) * 100) || 0, fill: 'hsl(var(--primary))' },
+      { method: 'QR Code', value: Math.round((qr / total) * 100) || 0, fill: 'hsl(var(--accent))' },
+      { method: 'Proximity', value: Math.round((proximity / total) * 100) || 0, fill: 'hsl(var(--success))' },
+      { method: 'Manual', value: Math.round((manual / total) * 100) || 0, fill: 'hsl(var(--muted-foreground))' },
+    ];
+  }, [records]);
+
+  // Calculate attendance stats
+  const attendanceStats = useMemo(() => {
+    const total = records.length;
+    const present = records.filter((r) => r.status === 'present').length;
+    const avgPercentage = total > 0 ? Math.round((present / total) * 100) : 0;
+    return { total, avgPercentage };
+  }, [records]);
+
+  const activeSessions = sessions.filter((s) => s.is_active).length;
+
+  // Weekly attendance chart data (placeholder - would need real date-based queries)
+  const attendanceChartData = [
+    { day: 'Mon', present: 0, late: 0, absent: 0 },
+    { day: 'Tue', present: 0, late: 0, absent: 0 },
+    { day: 'Wed', present: 0, late: 0, absent: 0 },
+    { day: 'Thu', present: 0, late: 0, absent: 0 },
+    { day: 'Fri', present: 0, late: 0, absent: 0 },
+  ];
 
   return (
     <DashboardLayout>
@@ -86,9 +125,9 @@ export default function ProfessorDashboard() {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatsCard
-            title="Total Students"
-            value="--"
-            subtitle="Across all classes"
+            title="Total Records"
+            value={attendanceStats.total.toString()}
+            subtitle="Attendance entries"
             icon={Users}
             variant="primary"
           />
@@ -101,15 +140,15 @@ export default function ProfessorDashboard() {
           />
           <StatsCard
             title="Avg. Attendance"
-            value="--%"
-            subtitle="Last 30 days"
+            value={`${attendanceStats.avgPercentage}%`}
+            subtitle="Present rate"
             icon={TrendingUp}
             variant="success"
           />
           <StatsCard
-            title="Sessions Today"
-            value="0"
-            subtitle="Start a session"
+            title="Active Sessions"
+            value={activeSessions.toString()}
+            subtitle={activeSessions > 0 ? 'In progress' : 'Start a session'}
             icon={Clock}
             variant="accent"
           />
@@ -119,7 +158,7 @@ export default function ProfessorDashboard() {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Live Attendance Feed */}
           <div className="lg:col-span-2">
-            <LiveAttendanceCard records={[]} />
+            <LiveAttendanceCard records={liveRecords} />
           </div>
 
           {/* Right Sidebar */}
