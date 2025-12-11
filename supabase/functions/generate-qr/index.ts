@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { decode } from 'https://deno.land/x/djwt@v3.0.2/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,24 +27,46 @@ Deno.serve(async (req) => {
     // Extract the JWT token from the header
     const token = authHeader.replace('Bearer ', '');
 
-    // Create admin client for auth verification and database operations
+    // Decode the JWT to get the user id (without full validation since session may be revoked)
+    let userId: string;
+    try {
+      const [_header, payload, _signature] = decode(token);
+      const payloadData = payload as { sub?: string; exp?: number };
+      
+      // Check if token is expired
+      if (payloadData.exp && payloadData.exp < Date.now() / 1000) {
+        console.error('Token expired');
+        return new Response(JSON.stringify({ error: 'Token expired' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      if (!payloadData.sub) {
+        console.error('No user id in token');
+        return new Response(JSON.stringify({ error: 'Invalid token' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      userId = payloadData.sub;
+      console.log('User ID from token:', userId);
+    } catch (decodeError) {
+      console.error('Failed to decode token:', decodeError);
+      return new Response(JSON.stringify({ error: 'Invalid token format' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Create service role client for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
       },
     });
-
-    // Verify the user using the token
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    
-    if (userError || !user) {
-      console.error('Auth error:', userError);
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
 
     const { sessionId } = await req.json();
     
@@ -54,7 +77,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log('Generating QR for session:', sessionId, 'by user:', user.id);
+    console.log('Generating QR for session:', sessionId, 'by user:', userId);
 
     // Verify the session exists and user is the professor
     const { data: session, error: sessionError } = await supabase
@@ -71,7 +94,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (session.classes.professor_id !== user.id) {
+    if (session.classes.professor_id !== userId) {
+      console.error('User', userId, 'is not the professor of this session. Professor is:', session.classes.professor_id);
       return new Response(JSON.stringify({ error: 'Not authorized for this session' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
