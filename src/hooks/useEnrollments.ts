@@ -87,15 +87,12 @@ export function useEnrollments(classId?: string) {
     if (profileError) throw profileError;
     if (!profile) throw new Error('Student not found with this email');
 
-    // Check if student has student role
-    const { data: roleData, error: roleError } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', profile.user_id)
-      .maybeSingle();
+    // Check if user is a student using security definer function
+    const { data: isStudent, error: roleError } = await supabase
+      .rpc('is_student', { _user_id: profile.user_id });
 
     if (roleError) throw roleError;
-    if (!roleData || roleData.role !== 'student') {
+    if (!isStudent) {
       throw new Error('This email does not belong to a student account');
     }
 
