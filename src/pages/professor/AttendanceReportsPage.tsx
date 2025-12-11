@@ -37,9 +37,9 @@ const statusColors: Record<string, string> = {
 };
 
 export default function AttendanceReportsPage() {
-  const [selectedClassId, setSelectedClassId] = useState<string>('');
+  const [selectedClassId, setSelectedClassId] = useState<string>('all');
   const { classes, isLoading: classesLoading } = useClasses();
-  const { records, isLoading: recordsLoading } = useAttendanceRecords(selectedClassId || undefined);
+  const { records, isLoading: recordsLoading } = useAttendanceRecords(selectedClassId === 'all' ? undefined : selectedClassId);
 
   const selectedClass = classes.find((c) => c.id === selectedClassId);
 
@@ -75,7 +75,7 @@ export default function AttendanceReportsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `attendance-${selectedClass?.code || 'all'}-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.download = `attendance-${selectedClass?.code || 'all-classes'}-${format(new Date(), 'yyyy-MM-dd')}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -95,7 +95,7 @@ export default function AttendanceReportsPage() {
                 <SelectValue placeholder="All Classes" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Classes</SelectItem>
+                <SelectItem value="all">All Classes</SelectItem>
                 {classes.map((cls) => (
                   <SelectItem key={cls.id} value={cls.id}>
                     {cls.code} - {cls.subject}
