@@ -14,3 +14,6 @@ verify_jwt = true
 
 [functions.verify-proximity]
 verify_jwt = true
+
+[functions.secure-register-face]
+verify_jwt = true

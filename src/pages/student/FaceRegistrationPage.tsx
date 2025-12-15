@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { FaceRegistration } from '@/components/attendance/FaceRegistration';
+import { SecureFaceRegistration } from '@/components/attendance/SecureFaceRegistration';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { CheckCircle2, ScanFace, AlertCircle, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, ScanFace, AlertCircle, ArrowLeft, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function FaceRegistrationPage() {
@@ -89,8 +89,8 @@ export default function FaceRegistrationPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <ScanFace className="w-5 h-5" />
-              How it works
+              <Shield className="w-5 h-5" />
+              Secure Registration Process
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -99,7 +99,7 @@ export default function FaceRegistrationPage() {
                 <span className="text-xs font-medium text-primary">1</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Take a clear photo of your face in good lighting
+                Capture your face from multiple angles (front, left, right, up)
               </p>
             </div>
             <div className="flex items-start gap-3">
@@ -107,7 +107,7 @@ export default function FaceRegistrationPage() {
                 <span className="text-xs font-medium text-primary">2</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Our AI analyzes your facial features securely
+                Complete liveness detection by blinking naturally
               </p>
             </div>
             <div className="flex items-start gap-3">
@@ -115,14 +115,22 @@ export default function FaceRegistrationPage() {
                 <span className="text-xs font-medium text-primary">3</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Use face recognition for instant attendance check-ins
+                AI verifies authenticity and creates secure facial signature
+              </p>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-xs font-medium text-primary">4</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Use face recognition for instant, secure attendance check-ins
               </p>
             </div>
           </CardContent>
         </Card>
 
         {/* Registration Component */}
-        <FaceRegistration 
+        <SecureFaceRegistration 
           onSuccess={() => {
             setIsRegistered(true);
             setRegisteredAt(new Date().toISOString());
@@ -137,10 +145,11 @@ export default function FaceRegistrationPage() {
           <CardContent>
             <ul className="text-sm text-muted-foreground space-y-2">
               <li>• Ensure your face is well-lit and clearly visible</li>
-              <li>• Remove sunglasses or hats that cover your face</li>
-              <li>• Look directly at the camera</li>
-              <li>• Keep a neutral expression</li>
-              <li>• Avoid blurry or dark photos</li>
+              <li>• Remove sunglasses, hats, or masks that cover your face</li>
+              <li>• Follow the on-screen angle guidance carefully</li>
+              <li>• Blink naturally during the liveness check</li>
+              <li>• Use a stable position to avoid blurry captures</li>
+              <li>• Registration requires consent for biometric data storage</li>
             </ul>
           </CardContent>
         </Card>
