@@ -16,8 +16,7 @@ Deno.serve(async (req) => {
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      console.error('No authorization header');
-      return new Response(JSON.stringify({ error: 'No authorization header' }), {
+      return new Response(JSON.stringify({ error: 'Authentication required' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -33,8 +32,7 @@ Deno.serve(async (req) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     
     if (userError || !user) {
-      console.error('Auth error:', userError);
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      return new Response(JSON.stringify({ error: 'Authentication failed' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -48,8 +46,6 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    console.log('Verifying QR for user:', user.id);
 
     let payload;
     try {
@@ -91,8 +87,7 @@ Deno.serve(async (req) => {
     );
 
     if (!isValid) {
-      console.error('Invalid signature');
-      return new Response(JSON.stringify({ error: 'Invalid QR code signature' }), {
+      return new Response(JSON.stringify({ error: 'Invalid QR code' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -107,7 +102,6 @@ Deno.serve(async (req) => {
       .single();
 
     if (sessionError || !session) {
-      console.error('Session error:', sessionError);
       return new Response(JSON.stringify({ error: 'Session not found or inactive' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -137,7 +131,6 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (enrollmentError || !enrollment) {
-      console.error('Enrollment error:', enrollmentError);
       return new Response(JSON.stringify({ error: 'You are not enrolled in this class' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -180,14 +173,12 @@ Deno.serve(async (req) => {
       .single();
 
     if (recordError) {
-      console.error('Record error:', recordError);
+      console.error('Attendance recording failed');
       return new Response(JSON.stringify({ error: 'Failed to record attendance' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    console.log('Attendance recorded successfully:', record.id);
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -198,7 +189,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Error verifying QR:', error);
+    console.error('QR verification error');
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

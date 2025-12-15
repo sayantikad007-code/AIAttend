@@ -34,9 +34,8 @@ Deno.serve(async (req) => {
     // Get the authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      console.error('No authorization header provided');
       return new Response(
-        JSON.stringify({ error: 'No authorization header' }),
+        JSON.stringify({ error: 'Authentication required' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -52,30 +51,25 @@ Deno.serve(async (req) => {
     // Verify the user
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
     if (authError || !user) {
-      console.error('Auth error:', authError?.message);
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
+        JSON.stringify({ error: 'Authentication failed' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    console.log('User authenticated:', user.id);
 
     // Parse request body
     const { sessionId, classId, latitude, longitude, accuracy } = await req.json();
 
     // Validate required fields
     if (!sessionId || !classId || latitude === undefined || longitude === undefined) {
-      console.error('Missing required fields:', { sessionId, classId, latitude, longitude });
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: sessionId, classId, latitude, longitude' }),
+        JSON.stringify({ error: 'Missing required fields' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Validate coordinate ranges
     if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
-      console.error('Invalid coordinates:', { latitude, longitude });
       return new Response(
         JSON.stringify({ error: 'Invalid GPS coordinates' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -90,7 +84,6 @@ Deno.serve(async (req) => {
       .single();
 
     if (sessionError || !session) {
-      console.error('Session not found:', sessionError?.message);
       return new Response(
         JSON.stringify({ error: 'Session not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -98,7 +91,6 @@ Deno.serve(async (req) => {
     }
 
     if (!session.is_active) {
-      console.error('Session is not active');
       return new Response(
         JSON.stringify({ error: 'Session is not active' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -107,7 +99,6 @@ Deno.serve(async (req) => {
 
     // Verify class ID matches session
     if (session.class_id !== classId) {
-      console.error('Class ID mismatch');
       return new Response(
         JSON.stringify({ error: 'Class ID does not match session' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -123,17 +114,14 @@ Deno.serve(async (req) => {
       .single();
 
     if (enrollmentError || !enrollment) {
-      console.error('Student not enrolled in class:', enrollmentError?.message);
       return new Response(
         JSON.stringify({ error: 'You are not enrolled in this class' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Student enrollment verified');
-
     // Check if already checked in
-    const { data: existingRecord, error: recordError } = await supabaseAdmin
+    const { data: existingRecord } = await supabaseAdmin
       .from('attendance_records')
       .select('id')
       .eq('session_id', sessionId)
@@ -141,7 +129,6 @@ Deno.serve(async (req) => {
       .single();
 
     if (existingRecord) {
-      console.log('Student already checked in');
       return new Response(
         JSON.stringify({ 
           success: true, 
@@ -160,7 +147,6 @@ Deno.serve(async (req) => {
       .single();
 
     if (classError || !classData) {
-      console.error('Class not found:', classError?.message);
       return new Response(
         JSON.stringify({ error: 'Class not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -180,8 +166,6 @@ Deno.serve(async (req) => {
         classData.longitude
       );
 
-      console.log(`Distance to classroom: ${distance}m, allowed radius: ${allowedRadius}m`);
-
       if (distance > allowedRadius) {
         return new Response(
           JSON.stringify({ 
@@ -198,7 +182,6 @@ Deno.serve(async (req) => {
     } else {
       // No classroom location configured - use accuracy as score
       verificationScore = accuracy ? Math.max(0, Math.min(1, (100 - accuracy) / 100)) : 0.5;
-      console.log('Classroom location not configured, allowing check-in');
     }
 
     // Record attendance
@@ -225,14 +208,12 @@ Deno.serve(async (req) => {
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      console.error('Failed to insert attendance record:', insertError.message);
+      console.error('Attendance recording failed');
       return new Response(
         JSON.stringify({ error: 'Failed to record attendance' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    console.log('Attendance recorded successfully');
 
     return new Response(
       JSON.stringify({ 
@@ -248,7 +229,7 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error('Proximity verification error');
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -15,12 +15,24 @@ serve(async (req) => {
     const { imageBase64, sessionId } = await req.json();
     
     if (!imageBase64 || !sessionId) {
-      throw new Error('Image data and session ID are required');
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Image data and session ID are required' 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('Authorization header required');
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Authentication required' 
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -31,7 +43,13 @@ serve(async (req) => {
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      throw new Error('Unauthorized');
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Authentication failed' 
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Get user's stored face embedding from secure table
@@ -78,7 +96,6 @@ serve(async (req) => {
       .maybeSingle();
 
     if (!enrollment) {
-      console.log('Student not enrolled in class:', session.class_id);
       return new Response(JSON.stringify({ 
         success: false, 
         error: 'You are not enrolled in this class' 
@@ -107,10 +124,15 @@ serve(async (req) => {
     // Use Lovable AI to analyze current face and compare
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY not configured');
+      console.error('LOVABLE_API_KEY not configured');
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Face verification service unavailable' 
+      }), {
+        status: 503,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
-
-    console.log('Verifying face for user:', user.id);
 
     // Extract base64 data without the data URL prefix
     let base64Data = imageBase64;
@@ -123,9 +145,6 @@ serve(async (req) => {
         base64Data = matches[2];
       }
     }
-
-    console.log('Image MIME type:', mimeType);
-    console.log('Base64 data length:', base64Data.length);
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -174,27 +193,43 @@ Return ONLY valid JSON, no markdown or explanation.`
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Gemini API error:', response.status, errorText);
-      throw new Error(`AI verification failed: ${response.status}`);
+      console.error('Face verification API error');
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Face verification service error' 
+      }), {
+        status: 503,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const aiData = await response.json();
     const content = aiData.choices?.[0]?.message?.content;
     
     if (!content) {
-      throw new Error('No response from AI');
+      console.error('No response from verification service');
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Face verification failed' 
+      }), {
+        status: 503,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
-
-    console.log('Verification response:', content);
 
     let verificationResult;
     try {
       const cleanContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       verificationResult = JSON.parse(cleanContent);
     } catch (parseError) {
-      console.error('Failed to parse AI response:', parseError);
-      throw new Error('Failed to verify face');
+      console.error('Verification response parsing failed');
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Face verification failed' 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     if (!verificationResult.face_detected) {
@@ -232,11 +267,15 @@ Return ONLY valid JSON, no markdown or explanation.`
       });
 
     if (insertError) {
-      console.error('Failed to insert attendance record:', insertError);
-      throw new Error('Failed to mark attendance');
+      console.error('Attendance recording failed');
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Failed to mark attendance' 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
-
-    console.log('Face verification successful for user:', user.id, 'Score:', matchScore);
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -248,10 +287,10 @@ Return ONLY valid JSON, no markdown or explanation.`
     });
 
   } catch (error) {
-    console.error('Error in verify-face:', error);
+    console.error('Face verification error');
     return new Response(JSON.stringify({ 
       success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+      error: 'Internal server error' 
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
