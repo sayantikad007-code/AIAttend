@@ -1,10 +1,10 @@
 project_id = "xzupccxznjljzhddqenz"
 
 [functions.generate-qr]
-verify_jwt = false
+verify_jwt = true
 
 [functions.verify-qr]
-verify_jwt = false
+verify_jwt = true
 
 [functions.register-face]
 verify_jwt = true
