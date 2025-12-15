@@ -101,14 +101,12 @@ export function ProximityCheckIn({ sessionId, classId, classRoom, onSuccess }: P
         },
       });
 
-      // Handle edge function errors - treat expected 400s as normal UX failures (no throw)
+      // Handle edge function errors - treat expected non-2xx as normal UX failures (no throw)
       if (error) {
-        const status = (error as unknown as { status?: number }).status;
-
-        const handleFailure = (message: string) => {
+        const handleFailure = (title: string, message: string) => {
           setVerificationStatus('failed');
           toast({
-            title: "Check-in Failed",
+            title,
             description: message,
             variant: "destructive",
           });
@@ -131,11 +129,11 @@ export function ProximityCheckIn({ sessionId, classId, classRoom, onSuccess }: P
               return;
             }
             if (errorBody?.error === 'You are not enrolled in this class') {
-              handleFailure("You are not enrolled in this class.");
+              handleFailure("Not Enrolled", "You are not enrolled in this class.");
               return;
             }
             if (errorBody?.error) {
-              handleFailure(errorBody.error);
+              handleFailure("Check-in Failed", errorBody.error);
               return;
             }
           } catch {
@@ -144,33 +142,34 @@ export function ProximityCheckIn({ sessionId, classId, classRoom, onSuccess }: P
         }
 
         // Fallback: extract JSON from error.message like: "Edge function returned 400: Error, { ... }"
-        if (status === 400 && typeof error.message === 'string') {
-          const match = error.message.match(/\{[\s\S]*\}$/);
-          if (match?.[0]) {
-            try {
-              const parsed = JSON.parse(match[0]);
-              if (parsed?.distance !== undefined && parsed?.allowedRadius !== undefined) {
-                setDistance(parsed.distance);
-                setAllowedRadius(parsed.allowedRadius);
-                setVerificationStatus('failed');
-                toast({
-                  title: "Too far from classroom",
-                  description: `You are ${parsed.distance}m away. Must be within ${parsed.allowedRadius}m of ${parsed.room || classRoom}.`,
-                  variant: "destructive",
-                });
-                return;
-              }
-              if (parsed?.error) {
-                handleFailure(parsed.error);
-                return;
-              }
-            } catch {
-              // ignore
+        const msg = typeof error.message === 'string' ? error.message : '';
+        const jsonMatch = msg.match(/\{[\s\S]*\}$/);
+        if (jsonMatch?.[0]) {
+          try {
+            const parsed = JSON.parse(jsonMatch[0]);
+            if (parsed?.distance !== undefined && parsed?.allowedRadius !== undefined) {
+              setDistance(parsed.distance);
+              setAllowedRadius(parsed.allowedRadius);
+              setVerificationStatus('failed');
+              toast({
+                title: "Too far from classroom",
+                description: `You are ${parsed.distance}m away. Must be within ${parsed.allowedRadius}m of ${parsed.room || classRoom}.`,
+                variant: "destructive",
+              });
+              return;
             }
+            if (parsed?.error) {
+              handleFailure("Check-in Failed", parsed.error);
+              return;
+            }
+          } catch {
+            // ignore
           }
+        }
 
-          // Expected client-visible failure; don't throw.
-          handleFailure("You're outside the allowed radius. Please move closer and try again.");
+        // If it's an expected "Edge function returned XYZ" error, show it and exit without throwing
+        if (msg.startsWith('Edge function returned')) {
+          handleFailure("Check-in Failed", msg);
           return;
         }
 
