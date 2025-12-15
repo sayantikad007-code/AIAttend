@@ -101,14 +101,25 @@ export function ProximityCheckIn({ sessionId, classId, classRoom, onSuccess }: P
         },
       });
 
-      // Handle edge function errors - check if it's a structured error response
+      // Handle edge function errors - treat expected 400s as normal UX failures (no throw)
       if (error) {
-        // Try to parse the error context for distance info (400 responses)
-        const errorContext = error.context;
+        const status = (error as unknown as { status?: number }).status;
+
+        const handleFailure = (message: string) => {
+          setVerificationStatus('failed');
+          toast({
+            title: "Check-in Failed",
+            description: message,
+            variant: "destructive",
+          });
+        };
+
+        // Try to parse structured error response from Response context (preferred)
+        const errorContext = (error as unknown as { context?: Response }).context;
         if (errorContext) {
           try {
-            const errorBody = await errorContext.json();
-            if (errorBody.distance !== undefined && errorBody.allowedRadius !== undefined) {
+            const errorBody = await errorContext.clone().json();
+            if (errorBody?.distance !== undefined && errorBody?.allowedRadius !== undefined) {
               setDistance(errorBody.distance);
               setAllowedRadius(errorBody.allowedRadius);
               setVerificationStatus('failed');
@@ -119,28 +130,50 @@ export function ProximityCheckIn({ sessionId, classId, classRoom, onSuccess }: P
               });
               return;
             }
-            if (errorBody.error === 'You are not enrolled in this class') {
-              setVerificationStatus('failed');
-              toast({
-                title: "Not Enrolled",
-                description: "You are not enrolled in this class.",
-                variant: "destructive",
-              });
+            if (errorBody?.error === 'You are not enrolled in this class') {
+              handleFailure("You are not enrolled in this class.");
               return;
             }
-            if (errorBody.error) {
-              setVerificationStatus('failed');
-              toast({
-                title: "Check-in Failed",
-                description: errorBody.error,
-                variant: "destructive",
-              });
+            if (errorBody?.error) {
+              handleFailure(errorBody.error);
               return;
             }
           } catch {
-            // Context parsing failed, fall through to generic error
+            // Fall back below
           }
         }
+
+        // Fallback: extract JSON from error.message like: "Edge function returned 400: Error, { ... }"
+        if (status === 400 && typeof error.message === 'string') {
+          const match = error.message.match(/\{[\s\S]*\}$/);
+          if (match?.[0]) {
+            try {
+              const parsed = JSON.parse(match[0]);
+              if (parsed?.distance !== undefined && parsed?.allowedRadius !== undefined) {
+                setDistance(parsed.distance);
+                setAllowedRadius(parsed.allowedRadius);
+                setVerificationStatus('failed');
+                toast({
+                  title: "Too far from classroom",
+                  description: `You are ${parsed.distance}m away. Must be within ${parsed.allowedRadius}m of ${parsed.room || classRoom}.`,
+                  variant: "destructive",
+                });
+                return;
+              }
+              if (parsed?.error) {
+                handleFailure(parsed.error);
+                return;
+              }
+            } catch {
+              // ignore
+            }
+          }
+
+          // Expected client-visible failure; don't throw.
+          handleFailure("You're outside the allowed radius. Please move closer and try again.");
+          return;
+        }
+
         throw new Error(error.message || 'Verification failed');
       }
 
