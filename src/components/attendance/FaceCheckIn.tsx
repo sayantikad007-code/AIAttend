@@ -22,6 +22,7 @@ export function FaceCheckIn({ sessionId, className, onSuccess }: FaceCheckInProp
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>('');
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -191,6 +192,7 @@ export function FaceCheckIn({ sessionId, className, onSuccess }: FaceCheckInProp
     ctx.restore();
     
     const imageData = canvas.toDataURL('image/jpeg', 0.9);
+    setCapturedImage(imageData);
     console.log('Captured image for verification, length:', imageData.length);
     
     setIsVerifying(true);
@@ -261,6 +263,7 @@ export function FaceCheckIn({ sessionId, className, onSuccess }: FaceCheckInProp
     setMatchScore(null);
     setCameraError(null);
     setStatusMessage('');
+    setCapturedImage(null);
     if (!isCapturing) {
       startCamera();
     }
@@ -372,6 +375,30 @@ export function FaceCheckIn({ sessionId, className, onSuccess }: FaceCheckInProp
         </div>
         
         <canvas ref={canvasRef} className="hidden" />
+
+        {/* Captured Image Preview */}
+        {capturedImage && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-muted-foreground">Captured Verification Image:</p>
+            <div className="relative aspect-video bg-muted rounded-lg overflow-hidden border">
+              <img 
+                src={capturedImage} 
+                alt="Captured face for verification" 
+                className="w-full h-full object-cover"
+              />
+              {status === 'success' && (
+                <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded text-xs font-medium">
+                  Verified
+                </div>
+              )}
+              {status === 'error' && (
+                <div className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded text-xs font-medium">
+                  Failed
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="flex gap-2">
           {!isCapturing && status === 'idle' && (
