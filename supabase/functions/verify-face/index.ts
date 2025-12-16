@@ -180,6 +180,7 @@ serve(async (req) => {
     );
 
     if (distance > allowedRadius) {
+      // Return 200 with success:false so client can read the response body
       return new Response(JSON.stringify({
         success: false,
         error: 'You are not within the classroom proximity.',
@@ -187,7 +188,6 @@ serve(async (req) => {
         allowedRadius,
         room: classData.room,
       }), {
-        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
