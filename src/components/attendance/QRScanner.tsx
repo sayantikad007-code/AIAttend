@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Camera, CameraOff, CheckCircle, XCircle, Loader2, PartyPopper, Info } from 'lucide-react';
+import { Camera, CameraOff, XCircle, Loader2, PartyPopper, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -23,6 +23,39 @@ export function QRScanner({ onSuccess }: QRScannerProps) {
   } | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const { toast } = useToast();
+
+  const getCurrentPosition = () => {
+    return new Promise<GeolocationPosition>((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Geolocation is not supported by your browser'));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => resolve(position),
+        (error) => {
+          let errorMessage = 'Unable to retrieve your location';
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = 'Location permission denied. Please enable location access to check in.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = 'Location information is unavailable.';
+              break;
+            case error.TIMEOUT:
+              errorMessage = 'Location request timed out. Please try again.';
+              break;
+          }
+          reject(new Error(errorMessage));
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        }
+      );
+    });
+  };
 
   const stopScanning = useCallback(async () => {
     if (scannerRef.current) {
@@ -48,14 +81,36 @@ export function QRScanner({ onSuccess }: QRScannerProps) {
 
     try {
       console.log('Scanned QR data:', decodedText);
-      
+
+      // Immediately capture GPS after successful QR scan
+      const position = await getCurrentPosition();
+      const { latitude, longitude, accuracy } = position.coords;
+
       const { data, error } = await supabase.functions.invoke('verify-qr', {
-        body: { qrData: decodedText },
+        body: { 
+          qrData: decodedText,
+          latitude,
+          longitude,
+          accuracy,
+        },
       });
 
       console.log('Verify response:', data, error);
 
-      if (error) throw error;
+      if (error) {
+        // Some edge-function errors come back in `error` with a context Response
+        const errorMessage = typeof error.message === 'string' ? error.message : 'Verification failed';
+        setScanResult({
+          success: false,
+          message: errorMessage,
+        });
+        toast({
+          title: 'Verification Failed',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+        return;
+      }
 
       if (data.success) {
         setScanResult({
@@ -90,7 +145,7 @@ export function QRScanner({ onSuccess }: QRScannerProps) {
             message: errorMsg,
           });
           toast({
-            title: 'Error',
+            title: 'Verification Failed',
             description: errorMsg,
             variant: 'destructive',
           });
@@ -104,7 +159,7 @@ export function QRScanner({ onSuccess }: QRScannerProps) {
         message: errorMessage,
       });
       toast({
-        title: 'Error',
+        title: 'Verification Failed',
         description: errorMessage,
         variant: 'destructive',
       });
