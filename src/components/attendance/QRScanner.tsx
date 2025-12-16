@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Camera, CameraOff, CheckCircle, XCircle, Loader2, PartyPopper, Info } from 'lucide-react';
+import { Camera, CameraOff, XCircle, Loader2, PartyPopper, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -48,14 +48,49 @@ export function QRScanner({ onSuccess }: QRScannerProps) {
 
     try {
       console.log('Scanned QR data:', decodedText);
-      
+
       const { data, error } = await supabase.functions.invoke('verify-qr', {
-        body: { qrData: decodedText },
+        body: { 
+          qrData: decodedText,
+        },
       });
 
       console.log('Verify response:', data, error);
 
-      if (error) throw error;
+      if (error) {
+        // Try to surface the server-provided error (common with edge function 4xx)
+        const errorContext = (error as unknown as { context?: Response }).context;
+        if (errorContext) {
+          try {
+            const parsed = await errorContext.clone().json();
+            const errMsg = parsed?.error || parsed?.message || 'Verification failed';
+            setScanResult({
+              success: false,
+              message: errMsg,
+            });
+            toast({
+              title: 'Verification Failed',
+              description: errMsg,
+              variant: 'destructive',
+            });
+            return;
+          } catch {
+            // fall through
+          }
+        }
+
+        const errorMessage = typeof error.message === 'string' ? error.message : 'Verification failed';
+        setScanResult({
+          success: false,
+          message: errorMessage,
+        });
+        toast({
+          title: 'Verification Failed',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+        return;
+      }
 
       if (data.success) {
         setScanResult({
@@ -71,6 +106,7 @@ export function QRScanner({ onSuccess }: QRScannerProps) {
         });
       } else {
         const errorMsg = data.error || 'Verification failed';
+
         // Check for duplicate attendance
         if (errorMsg.toLowerCase().includes('already marked') || errorMsg.toLowerCase().includes('already checked')) {
           setScanResult({
@@ -90,7 +126,7 @@ export function QRScanner({ onSuccess }: QRScannerProps) {
             message: errorMsg,
           });
           toast({
-            title: 'Error',
+            title: 'Verification Failed',
             description: errorMsg,
             variant: 'destructive',
           });
@@ -104,7 +140,7 @@ export function QRScanner({ onSuccess }: QRScannerProps) {
         message: errorMessage,
       });
       toast({
-        title: 'Error',
+        title: 'Verification Failed',
         description: errorMessage,
         variant: 'destructive',
       });

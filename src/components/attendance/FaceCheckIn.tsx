@@ -25,6 +25,51 @@ export function FaceCheckIn({ sessionId, className, onSuccess }: FaceCheckInProp
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  // Helper to get current GPS position (used to sync proximity with face recognition)
+  const getCurrentPosition = () => {
+    return new Promise<GeolocationPosition>((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Geolocation is not supported by your browser.'));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => resolve(position),
+        (error) => {
+          let errorMessage = 'Unable to retrieve your location.';
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = 'Location permission denied. Please enable GPS for face check-in.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = 'Location information is unavailable.';
+              break;
+            case error.TIMEOUT:
+              errorMessage = 'Location request timed out.';
+              break;
+          }
+          reject(new Error(errorMessage));
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        }
+      );
+    });
+  };
+
+  const ensureLocationPermission = async () => {
+    try {
+      const position = await getCurrentPosition();
+      return position;
+    } catch (error: any) {
+      const message = error?.message || 'Location permission is required for face check-in.';
+      toast.error(message);
+      throw error;
+    }
+  };
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -54,6 +99,11 @@ export function FaceCheckIn({ sessionId, className, onSuccess }: FaceCheckInProp
     setStatusMessage('');
 
     try {
+      // Prompt for GPS as soon as face check-in starts (does not block camera)
+      ensureLocationPermission().catch(() => {
+        // User may decline; verification step will enforce GPS again with a clear error
+      });
+
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Camera API not supported');
       }
@@ -103,6 +153,16 @@ export function FaceCheckIn({ sessionId, className, onSuccess }: FaceCheckInProp
   }, []);
 
   const captureAndVerify = useCallback(async () => {
+    // Ensure we have GPS before proceeding with face verification
+    let position: GeolocationPosition;
+    try {
+      position = await ensureLocationPermission();
+    } catch {
+      setStatus('error');
+      setStatusMessage('Location permission is required for face check-in.');
+      return;
+    }
+
     if (!videoRef.current || !canvasRef.current) {
       toast.error('Camera not ready');
       return;
@@ -137,7 +197,13 @@ export function FaceCheckIn({ sessionId, className, onSuccess }: FaceCheckInProp
 
     try {
       const { data, error } = await supabase.functions.invoke('verify-face', {
-        body: { imageBase64: imageData, sessionId }
+        body: { 
+          imageBase64: imageData, 
+          sessionId,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+        }
       });
 
       console.log('Verify response:', data, error);

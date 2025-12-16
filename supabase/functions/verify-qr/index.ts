@@ -25,11 +25,14 @@ Deno.serve(async (req) => {
     // Extract JWT token
     const token = authHeader.replace('Bearer ', '');
     
-    // Create service role client
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Create service role client (for DB) and anon client (for auth)
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseAuth = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: authHeader } },
+    });
 
     // Verify the JWT token and get user
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
     
     if (userError || !user) {
       return new Response(JSON.stringify({ error: 'Authentication failed' }), {
@@ -94,7 +97,7 @@ Deno.serve(async (req) => {
     }
 
     // Verify session exists and is active
-    const { data: session, error: sessionError } = await supabase
+    const { data: session, error: sessionError } = await supabaseAdmin
       .from('attendance_sessions')
       .select('*, classes!inner(id, subject)')
       .eq('id', sessionId)
@@ -109,7 +112,7 @@ Deno.serve(async (req) => {
     }
 
     // Verify secret matches from session_secrets table (students can't access this)
-    const { data: sessionSecret, error: secretError } = await supabase
+    const { data: sessionSecret, error: secretError } = await supabaseAdmin
       .from('session_secrets')
       .select('qr_secret')
       .eq('session_id', sessionId)
@@ -123,7 +126,7 @@ Deno.serve(async (req) => {
     }
 
     // Check if student is enrolled
-    const { data: enrollment, error: enrollmentError } = await supabase
+    const { data: enrollment, error: enrollmentError } = await supabaseAdmin
       .from('class_enrollments')
       .select('id')
       .eq('class_id', session.class_id)
@@ -138,7 +141,7 @@ Deno.serve(async (req) => {
     }
 
     // Check if already checked in
-    const { data: existingRecord } = await supabase
+    const { data: existingRecord } = await supabaseAdmin
       .from('attendance_records')
       .select('id')
       .eq('session_id', sessionId)
@@ -160,7 +163,7 @@ Deno.serve(async (req) => {
     const isLate = Date.now() - sessionStartTime.getTime() > 10 * 60 * 1000;
 
     // Record attendance
-    const { data: record, error: recordError } = await supabase
+    const { data: record, error: recordError } = await supabaseAdmin
       .from('attendance_records')
       .insert({
         session_id: sessionId,
