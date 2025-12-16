@@ -355,12 +355,13 @@ Return ONLY valid JSON, no markdown or explanation.`
       });
 
     if (insertError) {
-      console.error('Attendance recording failed');
+      console.error('Attendance recording failed:', JSON.stringify(insertError));
+      // Return 200 with success:false so client can read the response body
       return new Response(JSON.stringify({ 
         success: false, 
-        error: 'Failed to mark attendance' 
+        error: 'Failed to mark attendance: ' + (insertError.message || 'Unknown error'),
+        details: insertError.code
       }), {
-        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
