@@ -193,8 +193,10 @@ export function FaceCheckIn({ sessionId, className, onSuccess }: FaceCheckInProp
     
     const imageData = canvas.toDataURL('image/jpeg', 0.9);
     setCapturedImage(imageData);
+    // Store in localStorage for viewing in profile
+    localStorage.setItem('lastVerificationImage', imageData);
+    localStorage.setItem('lastVerificationTime', new Date().toISOString());
     console.log('Captured image for verification, length:', imageData.length);
-    
     setIsVerifying(true);
     setStatus('idle');
 

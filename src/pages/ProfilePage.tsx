@@ -7,13 +7,16 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, User, Mail, Building, Hash, Camera } from 'lucide-react';
+import { Loader2, Save, User, Mail, Building, Hash, Camera, ScanFace, Trash2 } from 'lucide-react';
+import { format } from 'date-fns';
 
 export default function ProfilePage() {
   const { user, updateUser } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [lastVerificationImage, setLastVerificationImage] = useState<string | null>(null);
+  const [lastVerificationTime, setLastVerificationTime] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -36,6 +39,27 @@ export default function ProfilePage() {
       });
     }
   }, [user]);
+
+  useEffect(() => {
+    // Load last verification image from localStorage
+    const storedImage = localStorage.getItem('lastVerificationImage');
+    const storedTime = localStorage.getItem('lastVerificationTime');
+    if (storedImage) {
+      setLastVerificationImage(storedImage);
+      setLastVerificationTime(storedTime);
+    }
+  }, []);
+
+  const clearVerificationImage = () => {
+    localStorage.removeItem('lastVerificationImage');
+    localStorage.removeItem('lastVerificationTime');
+    setLastVerificationImage(null);
+    setLastVerificationTime(null);
+    toast({
+      title: 'Cleared',
+      description: 'Verification image has been removed.',
+    });
+  };
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -107,6 +131,47 @@ export default function ProfilePage() {
             </div>
           </CardHeader>
         </Card>
+
+        {/* Last Face Verification Image */}
+        {lastVerificationImage && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ScanFace className="h-5 w-5 text-primary" />
+                  <div>
+                    <CardTitle className="text-lg">Last Face Verification</CardTitle>
+                    {lastVerificationTime && (
+                      <CardDescription>
+                        Captured: {format(new Date(lastVerificationTime), 'PPpp')}
+                      </CardDescription>
+                    )}
+                  </div>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={clearVerificationImage}
+                  className="text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="relative aspect-video bg-muted rounded-lg overflow-hidden border">
+                <img 
+                  src={lastVerificationImage} 
+                  alt="Last face verification" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-2 text-center">
+                This is the image used for your last face verification check-in
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         <form onSubmit={handleSubmit}>
           <Card>
