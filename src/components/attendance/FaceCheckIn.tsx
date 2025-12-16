@@ -13,22 +13,6 @@ interface FaceCheckInProps {
 
 type StatusType = 'idle' | 'success' | 'already_checked_in' | 'error';
 
-function extractEdgeFunctionJson(error: unknown): any | null {
-  const msg = (error as any)?.message;
-  if (typeof msg !== 'string') return null;
-
-  // Common Supabase Functions error format:
-  // "Edge function returned 400: Error, { ...json... }"
-  const idx = msg.indexOf('{');
-  if (idx === -1) return null;
-
-  const possibleJson = msg.slice(idx);
-  try {
-    return JSON.parse(possibleJson);
-  } catch {
-    return null;
-  }
-}
 
 export function FaceCheckIn({ sessionId, className, onSuccess }: FaceCheckInProps) {
   const [isCapturing, setIsCapturing] = useState(false);
@@ -226,23 +210,12 @@ export function FaceCheckIn({ sessionId, className, onSuccess }: FaceCheckInProp
       console.log('Verify response:', data, error);
 
       if (error) {
-        const payload = extractEdgeFunctionJson(error);
-        if (payload?.success === false) {
-          // Treat edge-function 4xx responses as normal UI errors (no crash)
-          const baseMsg = payload.error || 'Verification failed';
-          const proximityDetails =
-            typeof payload.distance === 'number' && typeof payload.allowedRadius === 'number'
-              ? ` (Distance: ${payload.distance}m, Allowed: ${payload.allowedRadius}m${payload.room ? `, Room: ${payload.room}` : ''})`
-              : '';
-
-          setStatus('error');
-          setMatchScore(payload.matchScore || null);
-          setStatusMessage(`${baseMsg}${proximityDetails}`);
-          toast.error(baseMsg);
-          return;
-        }
-
-        throw error;
+        console.error('Verification error:', error);
+        setStatus('error');
+        setStatusMessage('Failed to verify face. Please try again.');
+        toast.error('Failed to verify face. Please try again.');
+        setIsVerifying(false);
+        return;
       }
 
       if (data.success) {
