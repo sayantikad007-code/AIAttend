@@ -193,12 +193,18 @@ export function FaceCheckIn({ sessionId, className, onSuccess }: FaceCheckInProp
     
     const imageData = canvas.toDataURL('image/jpeg', 0.9);
     setCapturedImage(imageData);
-    // Store in localStorage for viewing in profile
-    localStorage.setItem('lastVerificationImage', imageData);
-    localStorage.setItem('lastVerificationTime', new Date().toISOString());
     console.log('Captured image for verification, length:', imageData.length);
     setIsVerifying(true);
     setStatus('idle');
+    
+    // Store verification image in database (async, don't block verification)
+    supabase.from('verification_images').insert({
+      user_id: (await supabase.auth.getUser()).data.user?.id,
+      image_data: imageData,
+      session_id: sessionId,
+    }).then(({ error }) => {
+      if (error) console.error('Failed to store verification image:', error);
+    });
 
     try {
       const { data, error } = await supabase.functions.invoke('verify-face', {

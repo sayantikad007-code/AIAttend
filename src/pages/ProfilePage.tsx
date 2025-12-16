@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, User, Mail, Building, Hash, Camera, ScanFace, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function ProfilePage() {
   const { user, updateUser } = useAuth();
@@ -17,6 +18,7 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [lastVerificationImage, setLastVerificationImage] = useState<string | null>(null);
   const [lastVerificationTime, setLastVerificationTime] = useState<string | null>(null);
+  const [verificationImageId, setVerificationImageId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -41,20 +43,45 @@ export default function ProfilePage() {
   }, [user]);
 
   useEffect(() => {
-    // Load last verification image from localStorage
-    const storedImage = localStorage.getItem('lastVerificationImage');
-    const storedTime = localStorage.getItem('lastVerificationTime');
-    if (storedImage) {
-      setLastVerificationImage(storedImage);
-      setLastVerificationTime(storedTime);
-    }
+    // Load last verification image from database
+    const loadVerificationImage = async () => {
+      const { data, error } = await supabase
+        .from('verification_images')
+        .select('id, image_data, captured_at')
+        .order('captured_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (data && !error) {
+        setLastVerificationImage(data.image_data);
+        setLastVerificationTime(data.captured_at);
+        setVerificationImageId(data.id);
+      }
+    };
+    
+    loadVerificationImage();
   }, []);
 
-  const clearVerificationImage = () => {
-    localStorage.removeItem('lastVerificationImage');
-    localStorage.removeItem('lastVerificationTime');
+  const clearVerificationImage = async () => {
+    if (!verificationImageId) return;
+    
+    const { error } = await supabase
+      .from('verification_images')
+      .delete()
+      .eq('id', verificationImageId);
+    
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete verification image.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     setLastVerificationImage(null);
     setLastVerificationTime(null);
+    setVerificationImageId(null);
     toast({
       title: 'Cleared',
       description: 'Verification image has been removed.',
